@@ -869,7 +869,10 @@
             
             drawBoard(board) {
                 this.ctx.save();
-                this.ctx.translate(board.x, board.y);
+                // Convert logical position to screen coordinates
+                const screenX = board.x * this.scale;
+                const screenY = board.y * this.scale;
+                this.ctx.translate(screenX, screenY);
                 this.ctx.rotate(board.rotation);
                 
                 // Convert logical dimensions to screen dimensions
@@ -1391,8 +1394,8 @@
                 const snappedLogicalY = Math.round(logicalY / snapSpacing) * snapSpacing;
                 
                 return {
-                    x: snappedLogicalX * this.scale, // Convert back to screen coordinates
-                    y: snappedLogicalY * this.scale,
+                    x: snappedLogicalX, // Store logical X in feet
+                    y: snappedLogicalY, // Store logical Y in feet
                     width: width,  // Store logical width in feet
                     height: length, // Store logical height in feet
                     rotation: 0,
@@ -1461,9 +1464,12 @@
                         if (this.selectedBoards.includes(clickedBoard)) {
                             // Start dragging the group
                             this.isDragging = true;
-                            this.selectedBoard = clickedBoard;
-                            this.dragOffset.x = x - clickedBoard.x;
-                            this.dragOffset.y = y - clickedBoard.y;
+                                                    this.selectedBoard = clickedBoard;
+                        // Convert screen coordinates to logical for drag offset
+                        const logicalX = x / this.scale;
+                        const logicalY = y / this.scale;
+                        this.dragOffset.x = logicalX - clickedBoard.x;
+                        this.dragOffset.y = logicalY - clickedBoard.y;
                             
                             // Save state before dragging
                             this.saveState();
@@ -1474,8 +1480,11 @@
                             clickedBoard.selected = true;
                             this.selectedBoard = clickedBoard;
                             this.isDragging = true;
-                            this.dragOffset.x = x - clickedBoard.x;
-                            this.dragOffset.y = y - clickedBoard.y;
+                            // Convert screen coordinates to logical for drag offset
+                            const logicalX = x / this.scale;
+                            const logicalY = y / this.scale;
+                            this.dragOffset.x = logicalX - clickedBoard.x;
+                            this.dragOffset.y = logicalY - clickedBoard.y;
                             
                             // Save state before dragging
                             this.saveState();
@@ -1528,15 +1537,21 @@
                 const y = worldPos.y;
                 
                 if (this.isDragging && this.selectedBoard) {
-                    // Calculate movement delta with snapping
-                    const rawX = x - this.dragOffset.x;
-                    const rawY = y - this.dragOffset.y;
-                    const snapped = this.snapToGrid(rawX, rawY);
-                    const newX = snapped.x;
-                    const newY = snapped.y;
+                    // Convert screen coordinates to logical coordinates
+                    const logicalX = x / this.scale;
+                    const logicalY = y / this.scale;
                     
-                    const deltaX = newX - this.selectedBoard.x;
-                    const deltaY = newY - this.selectedBoard.y;
+                    // Calculate movement delta with snapping in logical coordinates
+                    const rawLogicalX = logicalX - this.dragOffset.x;
+                    const rawLogicalY = logicalY - this.dragOffset.y;
+                    
+                    // Snap in logical coordinates
+                    const snapSpacing = this.snapGridSize; // 1/8" in feet
+                    const snappedLogicalX = Math.round(rawLogicalX / snapSpacing) * snapSpacing;
+                    const snappedLogicalY = Math.round(rawLogicalY / snapSpacing) * snapSpacing;
+                    
+                    const deltaX = snappedLogicalX - this.selectedBoard.x;
+                    const deltaY = snappedLogicalY - this.selectedBoard.y;
                     
                     // Store original positions of all selected boards
                     const originalPositions = this.selectedBoards.map(board => ({
@@ -1594,8 +1609,12 @@
                     const maxY = Math.max(this.boxStart.y, this.boxEnd.y);
                     
                     this.boards.forEach(board => {
-                        const inBox = board.x >= minX && board.x <= maxX && 
-                                     board.y >= minY && board.y <= maxY;
+                        // Convert board logical position to screen coordinates for box selection
+                        const boardScreenX = board.x * this.scale;
+                        const boardScreenY = board.y * this.scale;
+                        
+                        const inBox = boardScreenX >= minX && boardScreenX <= maxX && 
+                                     boardScreenY >= minY && boardScreenY <= maxY;
                         
                         if (inBox && !this.selectedBoards.includes(board)) {
                             this.selectedBoards.push(board);
@@ -1682,8 +1701,11 @@
                         this.selectedBoards = [clickedBoard];
                         clickedBoard.selected = true;
                         this.selectedBoard = clickedBoard;
-                        this.dragOffset.x = worldPos.x - clickedBoard.x;
-                        this.dragOffset.y = worldPos.y - clickedBoard.y;
+                        // Convert screen coordinates to logical for drag offset
+                        const logicalX = worldPos.x / this.scale;
+                        const logicalY = worldPos.y / this.scale;
+                        this.dragOffset.x = logicalX - clickedBoard.x;
+                        this.dragOffset.y = logicalY - clickedBoard.y;
                         this.saveState();
                         // Don't set isDragging yet - wait for movement
                     } else {
@@ -1747,12 +1769,21 @@
                         }
                         
                         const worldPos = this.screenToWorld(touch.x, touch.y);
-                        const rawX = worldPos.x - this.dragOffset.x;
-                        const rawY = worldPos.y - this.dragOffset.y;
-                        const snapped = this.snapToGrid(rawX, rawY);
+                        // Convert screen coordinates to logical coordinates
+                        const logicalX = worldPos.x / this.scale;
+                        const logicalY = worldPos.y / this.scale;
                         
-                        const deltaX = snapped.x - this.selectedBoard.x;
-                        const deltaY = snapped.y - this.selectedBoard.y;
+                        // Calculate movement delta with snapping in logical coordinates
+                        const rawLogicalX = logicalX - this.dragOffset.x;
+                        const rawLogicalY = logicalY - this.dragOffset.y;
+                        
+                        // Snap in logical coordinates
+                        const snapSpacing = this.snapGridSize; // 1/8" in feet
+                        const snappedLogicalX = Math.round(rawLogicalX / snapSpacing) * snapSpacing;
+                        const snappedLogicalY = Math.round(rawLogicalY / snapSpacing) * snapSpacing;
+                        
+                        const deltaX = snappedLogicalX - this.selectedBoard.x;
+                        const deltaY = snappedLogicalY - this.selectedBoard.y;
                         
                         const originalPositions = this.selectedBoards.map(board => ({
                             board: board,
@@ -1907,8 +1938,12 @@
             }
             
             isPointInBoard(px, py, board) {
-                const dx = px - board.x;
-                const dy = py - board.y;
+                // Convert board logical position to screen coordinates
+                const boardScreenX = board.x * this.scale;
+                const boardScreenY = board.y * this.scale;
+                
+                const dx = px - boardScreenX;
+                const dy = py - boardScreenY;
                 const cos = Math.cos(-board.rotation);
                 const sin = Math.sin(-board.rotation);
                 const localX = dx * cos - dy * sin;
@@ -1944,6 +1979,10 @@
             
             // Get the four corners of a board
             getBoardCorners(board) {
+                // Convert logical position to screen coordinates
+                const boardScreenX = board.x * this.scale;
+                const boardScreenY = board.y * this.scale;
+                
                 const cos = Math.cos(board.rotation);
                 const sin = Math.sin(board.rotation);
                 // Convert logical dimensions to screen dimensions
@@ -1951,10 +1990,10 @@
                 const hh = (board.height * this.scale) / 2;
                 
                 return [
-                    { x: board.x + (-hw * cos - -hh * sin), y: board.y + (-hw * sin + -hh * cos) },
-                    { x: board.x + (hw * cos - -hh * sin), y: board.y + (hw * sin + -hh * cos) },
-                    { x: board.x + (hw * cos - hh * sin), y: board.y + (hw * sin + hh * cos) },
-                    { x: board.x + (-hw * cos - hh * sin), y: board.y + (-hw * sin + hh * cos) }
+                    { x: boardScreenX + (-hw * cos - -hh * sin), y: boardScreenY + (-hw * sin + -hh * cos) },
+                    { x: boardScreenX + (hw * cos - -hh * sin), y: boardScreenY + (hw * sin + -hh * cos) },
+                    { x: boardScreenX + (hw * cos - hh * sin), y: boardScreenY + (hw * sin + hh * cos) },
+                    { x: boardScreenX + (-hw * cos - hh * sin), y: boardScreenY + (-hw * sin + hh * cos) }
                 ];
             }
             
@@ -2019,6 +2058,12 @@
                 for (let otherBoard of this.boards) {
                     if (excludeBoards.includes(otherBoard)) continue;
                     
+                    // Convert logical positions to screen coordinates
+                    const board1ScreenX = board.x * this.scale;
+                    const board1ScreenY = board.y * this.scale;
+                    const board2ScreenX = otherBoard.x * this.scale;
+                    const board2ScreenY = otherBoard.y * this.scale;
+                    
                     // Convert logical dimensions to screen dimensions for overlap checking
                     const board1Width = board.width * this.scale;
                     const board1Height = board.height * this.scale;
@@ -2026,15 +2071,15 @@
                     const board2Height = otherBoard.height * this.scale;
                     
                     // Get board boundaries with tolerance
-                    const board1Left = board.x - board1Width / 2 + overlapTolerance;
-                    const board1Right = board.x + board1Width / 2 - overlapTolerance;
-                    const board1Top = board.y - board1Height / 2 + overlapTolerance;
-                    const board1Bottom = board.y + board1Height / 2 - overlapTolerance;
+                    const board1Left = board1ScreenX - board1Width / 2 + overlapTolerance;
+                    const board1Right = board1ScreenX + board1Width / 2 - overlapTolerance;
+                    const board1Top = board1ScreenY - board1Height / 2 + overlapTolerance;
+                    const board1Bottom = board1ScreenY + board1Height / 2 - overlapTolerance;
                     
-                    const board2Left = otherBoard.x - board2Width / 2 + overlapTolerance;
-                    const board2Right = otherBoard.x + board2Width / 2 - overlapTolerance;
-                    const board2Top = otherBoard.y - board2Height / 2 + overlapTolerance;
-                    const board2Bottom = otherBoard.y + board2Height / 2 - overlapTolerance;
+                    const board2Left = board2ScreenX - board2Width / 2 + overlapTolerance;
+                    const board2Right = board2ScreenX + board2Width / 2 - overlapTolerance;
+                    const board2Top = board2ScreenY - board2Height / 2 + overlapTolerance;
+                    const board2Bottom = board2ScreenY + board2Height / 2 - overlapTolerance;
                     
                     // Check if boards significantly overlap
                     if (board1Left < board2Right && board1Right > board2Left &&
@@ -2072,39 +2117,41 @@
                 const deckLeftBottom = { x: deckX, y: deckY + leftEdge };
                 
                 // Snap to deck edges
-                // Convert logical dimensions to screen dimensions
+                // Convert logical position and dimensions to screen coordinates
+                const boardScreenX = board.x * this.scale;
+                const boardScreenY = board.y * this.scale;
                 const boardScreenWidth = board.width * this.scale;
                 const boardScreenHeight = board.height * this.scale;
-                const boardLeft = board.x - boardScreenWidth / 2;
-                const boardRight = board.x + boardScreenWidth / 2;
-                const boardTop = board.y - boardScreenHeight / 2;
-                const boardBottom = board.y + boardScreenHeight / 2;
+                const boardLeft = boardScreenX - boardScreenWidth / 2;
+                const boardRight = boardScreenX + boardScreenWidth / 2;
+                const boardTop = boardScreenY - boardScreenHeight / 2;
+                const boardBottom = boardScreenY + boardScreenHeight / 2;
                 
                 // Snap to left deck edge (vertical line from top-left to left-bottom)
                 if (Math.abs(boardLeft - deckX) < snapDistance && 
-                    board.y >= deckY && board.y <= deckY + leftEdge) {
-                    board.x = deckX + boardScreenWidth / 2;
+                    boardScreenY >= deckY && boardScreenY <= deckY + leftEdge) {
+                    board.x = (deckX + boardScreenWidth / 2) / this.scale; // Convert back to logical
                     snapped = true;
                 }
                 
                 // Snap to top deck edge (horizontal line from top-left to top-right)
                 if (Math.abs(boardTop - deckY) < snapDistance && 
-                    board.x >= deckX && board.x <= deckX + topEdge) {
-                    board.y = deckY + boardScreenHeight / 2;
+                    boardScreenX >= deckX && boardScreenX <= deckX + topEdge) {
+                    board.y = (deckY + boardScreenHeight / 2) / this.scale; // Convert back to logical
                     snapped = true;
                 }
                 
                 // Snap to right deck edge (vertical line from top-right to bottom-right)
                 if (Math.abs(boardRight - (deckX + topEdge)) < snapDistance && 
-                    board.y >= deckY && board.y <= deckY + rightEdge) {
-                    board.x = deckX + topEdge - boardScreenWidth / 2;
+                    boardScreenY >= deckY && boardScreenY <= deckY + rightEdge) {
+                    board.x = (deckX + topEdge - boardScreenWidth / 2) / this.scale; // Convert back to logical
                     snapped = true;
                 }
                 
                 // Snap to bottom deck edge (horizontal line from bottom-left to bottom-right)
                 if (Math.abs(boardBottom - (deckY + rightEdge)) < snapDistance && 
-                    board.x >= (deckX + topEdge - bottomEdge) && board.x <= (deckX + topEdge)) {
-                    board.y = deckY + rightEdge - boardScreenHeight / 2;
+                    boardScreenX >= (deckX + topEdge - bottomEdge) && boardScreenX <= (deckX + topEdge)) {
+                    board.y = (deckY + rightEdge - boardScreenHeight / 2) / this.scale; // Convert back to logical
                     snapped = true;
                 }
                 
@@ -2112,44 +2159,48 @@
                 for (let otherBoard of this.boards) {
                     if (otherBoard === board || this.selectedBoards.includes(otherBoard)) continue;
                     
-                    // Convert logical dimensions to screen dimensions for other board
+                    // Convert logical positions and dimensions to screen coordinates for other board
+                    const otherScreenX = otherBoard.x * this.scale;
+                    const otherScreenY = otherBoard.y * this.scale;
                     const otherScreenWidth = otherBoard.width * this.scale;
                     const otherScreenHeight = otherBoard.height * this.scale;
-                    const otherLeft = otherBoard.x - otherScreenWidth / 2;
-                    const otherRight = otherBoard.x + otherScreenWidth / 2;
-                    const otherTop = otherBoard.y - otherScreenHeight / 2;
-                    const otherBottom = otherBoard.y + otherScreenHeight / 2;
+                    const otherLeft = otherScreenX - otherScreenWidth / 2;
+                    const otherRight = otherScreenX + otherScreenWidth / 2;
+                    const otherTop = otherScreenY - otherScreenHeight / 2;
+                    const otherBottom = otherScreenY + otherScreenHeight / 2;
                     
                     // Recalculate board edges after potential deck snapping
-                    const newBoardLeft = board.x - boardScreenWidth / 2;
-                    const newBoardRight = board.x + boardScreenWidth / 2;
-                    const newBoardTop = board.y - boardScreenHeight / 2;
-                    const newBoardBottom = board.y + boardScreenHeight / 2;
+                    const newBoardScreenX = board.x * this.scale;
+                    const newBoardScreenY = board.y * this.scale;
+                    const newBoardLeft = newBoardScreenX - boardScreenWidth / 2;
+                    const newBoardRight = newBoardScreenX + boardScreenWidth / 2;
+                    const newBoardTop = newBoardScreenY - boardScreenHeight / 2;
+                    const newBoardBottom = newBoardScreenY + boardScreenHeight / 2;
                     
                     // Snap to board edges
                     // Left edge to right edge
                     if (Math.abs(newBoardLeft - otherRight) < snapDistance && 
-                        Math.abs(board.y - otherBoard.y) < boardScreenHeight / 2 + otherScreenHeight / 2) {
-                        board.x = otherRight + boardScreenWidth / 2;
+                        Math.abs(newBoardScreenY - otherScreenY) < boardScreenHeight / 2 + otherScreenHeight / 2) {
+                        board.x = (otherRight + boardScreenWidth / 2) / this.scale; // Convert back to logical
                         snapped = true;
                     }
                     // Right edge to left edge
                     else if (Math.abs(newBoardRight - otherLeft) < snapDistance && 
-                             Math.abs(board.y - otherBoard.y) < boardScreenHeight / 2 + otherScreenHeight / 2) {
-                        board.x = otherLeft - boardScreenWidth / 2;
+                             Math.abs(newBoardScreenY - otherScreenY) < boardScreenHeight / 2 + otherScreenHeight / 2) {
+                        board.x = (otherLeft - boardScreenWidth / 2) / this.scale; // Convert back to logical
                         snapped = true;
                     }
                     
                     // Top edge to bottom edge
                     if (Math.abs(newBoardTop - otherBottom) < snapDistance && 
-                        Math.abs(board.x - otherBoard.x) < boardScreenWidth / 2 + otherScreenWidth / 2) {
-                        board.y = otherBottom + boardScreenHeight / 2;
+                        Math.abs(newBoardScreenX - otherScreenX) < boardScreenWidth / 2 + otherScreenWidth / 2) {
+                        board.y = (otherBottom + boardScreenHeight / 2) / this.scale; // Convert back to logical
                         snapped = true;
                     }
                     // Bottom edge to top edge
                     else if (Math.abs(newBoardBottom - otherTop) < snapDistance && 
-                             Math.abs(board.x - otherBoard.x) < boardScreenWidth / 2 + otherScreenWidth / 2) {
-                        board.y = otherTop - boardScreenHeight / 2;
+                             Math.abs(newBoardScreenX - otherScreenX) < boardScreenWidth / 2 + otherScreenWidth / 2) {
+                        board.y = (otherTop - boardScreenHeight / 2) / this.scale; // Convert back to logical
                         snapped = true;
                     }
                 }
