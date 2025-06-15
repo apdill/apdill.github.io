@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Deck Layout Visualizer</title>
     <style>
         body {
@@ -11,6 +11,11 @@
             padding: 0;
             background: #1a1a1a;
             min-height: 100vh;
+            /* Prevent Safari zoom and scroll */
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
         
         .container {
@@ -19,6 +24,10 @@
             height: 100vh;
             margin: 0;
             padding: 0;
+            /* Additional Safari touch prevention */
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
         }
         
         .controls {
@@ -589,6 +598,10 @@
                 this.touches = [];
                 this.lastTouchDistance = 0;
                 this.touchStartTime = 0;
+                this.initialPinchDistance = 0;
+                this.currentScale = 1;
+                this.minScale = 0.5;
+                this.maxScale = 3;
                 
                 // Snap-to-grid settings
                 this.snapGridSize = 1/8 / 12; // 1/8 inch in feet
@@ -634,6 +647,9 @@
                 
                 // Dialog dragging functionality
                 this.initDialogDragging();
+                
+                // Prevent Safari interference
+                this.preventSafariInterference();
                 
                 // Control events
                 ['topEdge', 'rightEdge', 'bottomEdge', 'leftEdge', 'extWidth', 'extLength', 'joistSpacing', 'joistDirection', 'boardWidth', 'boardGap', 'boardLength', 'gridSize', 'showGrid', 'customGridSize', 'gridUnit', 'snapToGrid'].forEach(id => {
@@ -1214,6 +1230,46 @@
                 });
             }
             
+            preventSafariInterference() {
+                // Prevent Safari's default touch behaviors
+                document.addEventListener('touchstart', (e) => {
+                    if (e.target === this.canvas || this.canvas.contains(e.target)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                }, { passive: false });
+                
+                document.addEventListener('touchmove', (e) => {
+                    if (e.target === this.canvas || this.canvas.contains(e.target)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                }, { passive: false });
+                
+                document.addEventListener('touchend', (e) => {
+                    if (e.target === this.canvas || this.canvas.contains(e.target)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                }, { passive: false });
+                
+                // Prevent Safari zoom on double tap
+                document.addEventListener('gesturestart', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, { passive: false });
+                
+                document.addEventListener('gesturechange', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, { passive: false });
+                
+                document.addEventListener('gestureend', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, { passive: false });
+            }
+            
             showDimensionInput(edge) {
                 // Center the dialog on screen
                 const dialogWidth = 220;
@@ -1521,6 +1577,7 @@
             
             handleTouchStart(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 console.log('Touch start:', e.touches.length, 'touches');
                 
                 const rect = this.canvas.getBoundingClientRect();
@@ -1577,16 +1634,28 @@
                         this.selectedBoards = [];
                     }
                 } else if (this.touches.length === 2) {
-                    // Two finger touch - pinch to zoom (let browser handle) and pan
+                    // Two finger touch - manual pinch to zoom and pan
+                    const touch1 = this.touches[0];
+                    const touch2 = this.touches[1];
+                    
+                    // Calculate initial distance for pinch zoom
+                    this.initialPinchDistance = Math.sqrt(
+                        Math.pow(touch2.x - touch1.x, 2) + Math.pow(touch2.y - touch1.y, 2)
+                    );
+                    
+                    // Set up panning
                     this.isPanning = true;
-                    const centerX = (this.touches[0].x + this.touches[1].x) / 2;
-                    const centerY = (this.touches[0].y + this.touches[1].y) / 2;
+                    const centerX = (touch1.x + touch2.x) / 2;
+                    const centerY = (touch1.y + touch2.y) / 2;
                     this.panStart.x = centerX;
                     this.panStart.y = centerY;
                     
                     // Stop any other interactions
                     this.isDragging = false;
                     this.isBoxSelecting = false;
+                    this.selectedBoard = null;
+                    this.boards.forEach(b => b.selected = false);
+                    this.selectedBoards = [];
                 }
                 
                 this.drawDeck();
@@ -1594,6 +1663,7 @@
             
             handleTouchMove(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 
                 const rect = this.canvas.getBoundingClientRect();
                 const currentTouches = Array.from(e.touches).map(touch => ({
@@ -1669,9 +1739,34 @@
                         this.panStart.y = touch.y;
                     }
                 } else if (currentTouches.length === 2 && this.touches.length === 2) {
-                    // Two finger panning (and browser handles pinch zoom automatically)
-                    const centerX = (currentTouches[0].x + currentTouches[1].x) / 2;
-                    const centerY = (currentTouches[0].y + currentTouches[1].y) / 2;
+                    // Two finger pinch-to-zoom and panning
+                    const touch1 = currentTouches[0];
+                    const touch2 = currentTouches[1];
+                    
+                    // Calculate current distance for pinch zoom
+                    const currentDistance = Math.sqrt(
+                        Math.pow(touch2.x - touch1.x, 2) + Math.pow(touch2.y - touch1.y, 2)
+                    );
+                    
+                    if (this.initialPinchDistance > 0) {
+                        // Calculate zoom factor
+                        const zoomFactor = currentDistance / this.initialPinchDistance;
+                        const newScale = Math.max(this.minScale, Math.min(this.maxScale, this.currentScale * zoomFactor));
+                        
+                        if (newScale !== this.currentScale) {
+                            // Apply zoom by scaling the canvas
+                            const scaleChange = newScale / this.currentScale;
+                            this.scale *= scaleChange;
+                            this.currentScale = newScale;
+                            console.log('Zoom:', this.currentScale, 'Scale:', this.scale);
+                        }
+                        
+                        this.initialPinchDistance = currentDistance;
+                    }
+                    
+                    // Two finger panning
+                    const centerX = (touch1.x + touch2.x) / 2;
+                    const centerY = (touch1.y + touch2.y) / 2;
                     
                     if (this.isPanning) {
                         const deltaX = centerX - this.panStart.x;
@@ -1691,6 +1786,7 @@
             
             handleTouchEnd(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 
                 const touchDuration = Date.now() - this.touchStartTime;
                 
@@ -1714,6 +1810,7 @@
                 this.isPanning = false;
                 this.touches = [];
                 this.selectedEdge = null;
+                this.initialPinchDistance = 0;
                 
                 this.drawDeck();
             }
