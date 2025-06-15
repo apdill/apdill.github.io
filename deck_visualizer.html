@@ -478,6 +478,11 @@
                         • Drag empty space to box-select multiple boards<br>
                         • Hold Ctrl/Cmd + click to add/remove from selection<br><br>
                         
+                        <strong>🔍 Navigation:</strong><br>
+                        • <strong>Shift + drag</strong> or <strong>middle mouse</strong> to pan around<br>
+                        • <strong>Mouse wheel</strong> to scroll (panning coming soon)<br>
+                        • <strong>Box select</strong> by dragging in empty space<br><br>
+                        
                         <strong>⌨️ Keyboard Shortcuts:</strong><br>
                         • <strong>Ctrl+C</strong> to copy, <strong>Ctrl+V</strong> to paste boards<br>
                         • <strong>Ctrl+D</strong> to duplicate selected boards<br>
@@ -573,6 +578,12 @@
                 this.isDraggingDialog = false;
                 this.dialogDragOffset = { x: 0, y: 0 };
                 
+                // Panning functionality
+                this.isPanning = false;
+                this.panOffset = { x: 0, y: 0 };
+                this.panStart = { x: 0, y: 0 };
+                this.viewOffset = { x: 0, y: 0 };
+                
                 // Snap-to-grid settings
                 this.snapGridSize = 1/8 / 12; // 1/8 inch in feet
                 this.snapEnabled = true; // Re-enable snapping
@@ -591,15 +602,23 @@
                 this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
                 this.canvas.addEventListener('mouseup', this.handleMouseUp.bind(this));
                 this.canvas.addEventListener('contextmenu', this.handleRightClick.bind(this));
+                this.canvas.addEventListener('wheel', this.handleWheel.bind(this));
                 
-                // Change cursor for edge handles
+                // Change cursor for edge handles and panning
                 this.canvas.addEventListener('mousemove', (e) => {
-                    const rect = this.canvas.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-                    const edge = this.getEdgeAtPoint(x, y);
+                    if (this.isPanning) return; // Don't change cursor while panning
                     
-                    this.canvas.style.cursor = edge ? 'pointer' : 'grab';
+                    const rect = this.canvas.getBoundingClientRect();
+                    const screenX = e.clientX - rect.left;
+                    const screenY = e.clientY - rect.top;
+                    const worldPos = this.screenToWorld(screenX, screenY);
+                    const edge = this.getEdgeAtPoint(worldPos.x, worldPos.y);
+                    
+                    if (e.shiftKey) {
+                        this.canvas.style.cursor = 'grab';
+                    } else {
+                        this.canvas.style.cursor = edge ? 'pointer' : 'grab';
+                    }
                 });
                 
                 // Dialog dragging functionality
@@ -634,8 +653,28 @@
                 this.drawDeck();
             }
             
+            // Convert screen coordinates to world coordinates (accounting for panning)
+            screenToWorld(screenX, screenY) {
+                return {
+                    x: screenX - this.viewOffset.x,
+                    y: screenY - this.viewOffset.y
+                };
+            }
+            
+            // Convert world coordinates to screen coordinates
+            worldToScreen(worldX, worldY) {
+                return {
+                    x: worldX + this.viewOffset.x,
+                    y: worldY + this.viewOffset.y
+                };
+            }
+            
             drawDeck() {
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Apply view transformation for panning
+                this.ctx.save();
+                this.ctx.translate(this.viewOffset.x, this.viewOffset.y);
                 
                 // Get dimensions
                 const topEdge = parseFloat(document.getElementById('topEdge').value);
@@ -664,6 +703,9 @@
                 if (this.isBoxSelecting) {
                     this.drawSelectionBox();
                 }
+                
+                // Restore transformation
+                this.ctx.restore();
                 
                 // Update board count
                 this.updateBoardCount();
@@ -1229,8 +1271,23 @@
             
             handleMouseDown(e) {
                 const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
+                const screenX = e.clientX - rect.left;
+                const screenY = e.clientY - rect.top;
+                
+                // Check for panning (middle mouse button or space + left click)
+                if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+                    this.isPanning = true;
+                    this.panStart.x = screenX;
+                    this.panStart.y = screenY;
+                    this.canvas.style.cursor = 'grabbing';
+                    e.preventDefault();
+                    return;
+                }
+                
+                // Convert to world coordinates for all other interactions
+                const worldPos = this.screenToWorld(screenX, screenY);
+                const x = worldPos.x;
+                const y = worldPos.y;
                 
                 // Check if clicking on an edge handle first
                 const clickedEdge = this.getEdgeAtPoint(x, y);
@@ -1316,8 +1373,28 @@
             
             handleMouseMove(e) {
                 const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
+                const screenX = e.clientX - rect.left;
+                const screenY = e.clientY - rect.top;
+                
+                // Handle panning
+                if (this.isPanning) {
+                    const deltaX = screenX - this.panStart.x;
+                    const deltaY = screenY - this.panStart.y;
+                    
+                    this.viewOffset.x += deltaX;
+                    this.viewOffset.y += deltaY;
+                    
+                    this.panStart.x = screenX;
+                    this.panStart.y = screenY;
+                    
+                    this.drawDeck();
+                    return;
+                }
+                
+                // Convert to world coordinates for other interactions
+                const worldPos = this.screenToWorld(screenX, screenY);
+                const x = worldPos.x;
+                const y = worldPos.y;
                 
                 if (this.isDragging && this.selectedBoard) {
                     // Calculate movement delta with snapping
@@ -1402,22 +1479,33 @@
             handleMouseUp() {
                 this.isDragging = false;
                 this.isBoxSelecting = false;
+                this.isPanning = false;
+                this.canvas.style.cursor = 'grab';
             }
             
             handleRightClick(e) {
                 e.preventDefault();
                 const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
+                const screenX = e.clientX - rect.left;
+                const screenY = e.clientY - rect.top;
+                const worldPos = this.screenToWorld(screenX, screenY);
                 
                 // Find board to rotate
                 for (let board of this.boards) {
-                    if (this.isPointInBoard(x, y, board)) {
+                    if (this.isPointInBoard(worldPos.x, worldPos.y, board)) {
                         board.rotation += Math.PI / 2;
                         this.drawDeck();
                         break;
                     }
                 }
+            }
+            
+            handleWheel(e) {
+                e.preventDefault();
+                
+                // Simple zoom by adjusting scale (optional enhancement)
+                // For now, just prevent default scrolling behavior
+                // Could add zoom functionality here later
             }
             
             isPointInBoard(px, py, board) {
