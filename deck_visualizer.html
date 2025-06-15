@@ -482,9 +482,8 @@
                     <div class="info">
                         <strong>🎯 Basic Controls:</strong><br>
                         • Tap blue edge handles to edit deck dimensions<br>
-                        • <strong>Double-tap</strong> boards to edit their size<br>
+                        • <strong>Double-tap</strong> boards to edit size and rotation<br>
                         • Tap and drag boards to reposition<br>
-                        • <strong>Mobile:</strong> Long press (hold) boards to rotate them<br>
                         • <strong>Desktop:</strong> Right-click boards to rotate them<br>
                         • <strong>Desktop:</strong> Drag empty space to box-select multiple boards<br>
                         • <strong>Desktop:</strong> Hold Ctrl/Cmd + click to add/remove from selection<br><br>
@@ -539,6 +538,15 @@
                         <input type="number" id="lengthInput" class="dimension-input" step="0.5" min="0.5">
                         <button class="increment-btn" onclick="adjustDimension('length', 0.5)">+</button>
                         <span style="font-size: 11px; color: #666;">feet</span>
+                    </div>
+                </div>
+                
+                <div class="dimension-row" id="rotationInputRow">
+                    <div class="dimension-label">Rotate:</div>
+                    <div class="dimension-controls">
+                        <button class="increment-btn" onclick="rotateBoardInDialog(-90)">↺</button>
+                        <span id="rotationDisplay" style="width: 60px; text-align: center; font-size: 12px; color: #333;">0°</span>
+                        <button class="increment-btn" onclick="rotateBoardInDialog(90)">↻</button>
                     </div>
                 </div>
                 
@@ -604,9 +612,7 @@
                 this.currentScale = 1;
                 this.minScale = 0.5;
                 this.maxScale = 3;
-                this.longPressTimer = null;
-                this.longPressThreshold = 500; // 500ms for long press
-                this.longPressTriggered = false;
+
                 
                 // Snap-to-grid settings
                 this.snapGridSize = 1/8 / 12; // 1/8 inch in feet
@@ -1164,20 +1170,29 @@
                     // Show board inputs, hide edge input
                     const widthRow = floatingInput.querySelector('.dimension-row:nth-child(1)');
                     const lengthRow = floatingInput.querySelector('.dimension-row:nth-child(2)');
+                    const rotationRow = document.getElementById('rotationInputRow');
                     
-                    console.log('Dimension rows found:', { widthRow: !!widthRow, lengthRow: !!lengthRow });
+                    console.log('Dimension rows found:', { widthRow: !!widthRow, lengthRow: !!lengthRow, rotationRow: !!rotationRow });
                     
                     if (widthRow) widthRow.style.display = 'flex';
                     if (lengthRow) lengthRow.style.display = 'flex';
+                    if (rotationRow) rotationRow.style.display = 'flex';
                     edgeInputRow.style.display = 'none';
                     
                     const boardWidthInches = (target.width / this.scale * 12);
                     const boardLengthFeet = (target.height / this.scale);
+                    const rotationDegrees = Math.round((target.rotation * 180 / Math.PI) % 360);
                     
-                    console.log('Board dimensions:', { boardWidthInches, boardLengthFeet });
+                    console.log('Board dimensions:', { boardWidthInches, boardLengthFeet, rotationDegrees });
                     
                     widthInput.value = boardWidthInches.toFixed(1);
                     lengthInput.value = boardLengthFeet.toFixed(1);
+                    
+                    // Update rotation display
+                    const rotationDisplay = document.getElementById('rotationDisplay');
+                    if (rotationDisplay) {
+                        rotationDisplay.textContent = rotationDegrees + '°';
+                    }
                     
                     widthInput.focus();
                 } else if (type === 'edge') {
@@ -1185,9 +1200,11 @@
                     // Show edge input, hide board inputs
                     const widthRow = floatingInput.querySelector('.dimension-row:nth-child(1)');
                     const lengthRow = floatingInput.querySelector('.dimension-row:nth-child(2)');
+                    const rotationRow = document.getElementById('rotationInputRow');
                     
                     if (widthRow) widthRow.style.display = 'none';
                     if (lengthRow) lengthRow.style.display = 'none';
+                    if (rotationRow) rotationRow.style.display = 'none';
                     edgeInputRow.style.display = 'flex';
                     
                     const currentValue = document.getElementById(target.dimension).value;
@@ -1626,14 +1643,6 @@
                         this.dragOffset.y = worldPos.y - clickedBoard.y;
                         this.saveState();
                         // Don't set isDragging yet - wait for movement
-                        
-                        // Start long press timer for rotation
-                        this.longPressTriggered = false;
-                        this.longPressTimer = setTimeout(() => {
-                            this.longPressTriggered = true;
-                            this.rotateBoard(clickedBoard);
-                            console.log('Long press detected - rotating board');
-                        }, this.longPressThreshold);
                     } else {
                         // Start panning for single finger in empty space
                         console.log('Starting pan mode');
@@ -1692,11 +1701,6 @@
                         // Start or continue dragging a board
                         if (!this.isDragging) {
                             this.isDragging = true;
-                            // Cancel long press timer when starting to drag
-                            if (this.longPressTimer) {
-                                clearTimeout(this.longPressTimer);
-                                this.longPressTimer = null;
-                            }
                         }
                         
                         const worldPos = this.screenToWorld(touch.x, touch.y);
@@ -1771,9 +1775,29 @@
                         const newScale = Math.max(this.minScale, Math.min(this.maxScale, this.currentScale * zoomFactor));
                         
                         if (newScale !== this.currentScale) {
-                            // Apply zoom by scaling the canvas
+                            // Apply zoom by scaling everything
                             const scaleChange = newScale / this.currentScale;
+                            
+                            // Scale the main drawing scale
                             this.scale *= scaleChange;
+                            
+                            // Scale all board positions and sizes to maintain their relative position to deck
+                            const baseX = 150;
+                            const baseY = 100;
+                            const snappedDeckPos = this.snapToGrid(baseX, baseY);
+                            
+                            this.boards.forEach(board => {
+                                // Scale position relative to deck origin
+                                const relativeX = board.x - snappedDeckPos.x;
+                                const relativeY = board.y - snappedDeckPos.y;
+                                board.x = snappedDeckPos.x + relativeX * scaleChange;
+                                board.y = snappedDeckPos.y + relativeY * scaleChange;
+                                
+                                // Scale board dimensions
+                                board.width *= scaleChange;
+                                board.height *= scaleChange;
+                            });
+                            
                             this.currentScale = newScale;
                             console.log('Zoom:', this.currentScale, 'Scale:', this.scale);
                         }
@@ -1807,14 +1831,8 @@
                 
                 const touchDuration = Date.now() - this.touchStartTime;
                 
-                // Clean up long press timer
-                if (this.longPressTimer) {
-                    clearTimeout(this.longPressTimer);
-                    this.longPressTimer = null;
-                }
-                
-                if (this.touches.length === 1 && touchDuration < 300 && !this.longPressTriggered) {
-                    // Quick tap - check for double tap (only if long press wasn't triggered)
+                if (this.touches.length === 1 && touchDuration < 300) {
+                    // Quick tap - check for double tap
                     const touch = this.touches[0];
                     const worldPos = this.screenToWorld(touch.x, touch.y);
                     
@@ -1834,7 +1852,6 @@
                 this.touches = [];
                 this.selectedEdge = null;
                 this.initialPinchDistance = 0;
-                this.longPressTriggered = false;
                 
                 this.drawDeck();
             }
@@ -2149,6 +2166,28 @@
             }
         }
         
+        // Board rotation in dialog
+        function rotateBoardInDialog(degrees) {
+            if (!deckViz.editingTarget || deckViz.editingType !== 'board') return;
+            
+            const board = deckViz.editingTarget;
+            board.rotation += degrees * Math.PI / 180;
+            
+            // Normalize rotation to 0-2π range
+            while (board.rotation < 0) board.rotation += 2 * Math.PI;
+            while (board.rotation >= 2 * Math.PI) board.rotation -= 2 * Math.PI;
+            
+            // Update display
+            const rotationDegrees = Math.round((board.rotation * 180 / Math.PI) % 360);
+            const rotationDisplay = document.getElementById('rotationDisplay');
+            if (rotationDisplay) {
+                rotationDisplay.textContent = rotationDegrees + '°';
+            }
+            
+            // Redraw immediately
+            deckViz.drawDeck();
+        }
+        
         // Floating input functionality
         function applyFloatingInput() {
             if (deckViz.editingType === 'edge') {
@@ -2300,6 +2339,8 @@
             
             // Only add if we found a valid position
             if (attempts < 50) {
+                // Make boards horizontal by default (rotate 90 degrees)
+                board.rotation = Math.PI / 2;
                 deckViz.boards.push(board);
                 deckViz.drawDeck();
             } else {
@@ -2326,6 +2367,8 @@
                 
                 // Only add if we found a valid position
                 if (attempts < 20) {
+                    // Make boards horizontal by default (rotate 90 degrees)
+                    board.rotation = Math.PI / 2;
                     deckViz.boards.push(board);
                     addedCount++;
                 } else {
