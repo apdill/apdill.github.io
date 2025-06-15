@@ -1003,6 +1003,16 @@
                         textX = midX;
                         textY = midY + 20;
                         this.ctx.textAlign = 'center';
+                    } else if (handle.id === 'ext-right') {
+                        // Extension right edge: position text above the edge to avoid overlap
+                        textX = midX;
+                        textY = midY - 15;
+                        this.ctx.textAlign = 'center';
+                    } else if (handle.id === 'ext-bottom') {
+                        // Extension bottom edge: position text to the right to avoid overlap
+                        textX = midX + 30;
+                        textY = midY;
+                        this.ctx.textAlign = 'left';
                     }
                     
                     this.ctx.fillText(`${value}'`, textX, textY);
@@ -1125,13 +1135,17 @@
             }
             
             showDimensionInput(edge) {
-                const rect = this.canvas.getBoundingClientRect();
+                // Center the dialog on screen
+                const dialogWidth = 220;
+                const dialogHeight = 150;
+                const centerX = window.innerWidth / 2 - dialogWidth / 2;
+                const centerY = window.innerHeight / 2 - dialogHeight / 2;
                 
                 this.showFloatingInput(
                     edge,
                     'edge',
-                    rect.right + 10,
-                    rect.top + 50,
+                    centerX,
+                    centerY,
                     `Edit ${edge.dimension.replace(/([A-Z])/g, ' $1').toLowerCase()}:`
                 );
             }
@@ -1519,8 +1533,19 @@
                 const snappedDeckPos = this.snapToGrid(baseX, baseY);
                 const deckX = snappedDeckPos.x;
                 const deckY = snappedDeckPos.y;
+                
+                // Get all deck dimensions for irregular quadrilateral
                 const topEdge = parseFloat(document.getElementById('topEdge').value) * this.scale;
                 const rightEdge = parseFloat(document.getElementById('rightEdge').value) * this.scale;
+                const bottomEdge = parseFloat(document.getElementById('bottomEdge').value) * this.scale;
+                const leftEdge = parseFloat(document.getElementById('leftEdge').value) * this.scale;
+                
+                // Calculate actual deck boundaries for irregular quadrilateral
+                const deckTopLeft = { x: deckX, y: deckY };
+                const deckTopRight = { x: deckX + topEdge, y: deckY };
+                const deckBottomRight = { x: deckX + topEdge, y: deckY + rightEdge };
+                const deckBottomLeft = { x: deckX + topEdge - bottomEdge, y: deckY + rightEdge };
+                const deckLeftBottom = { x: deckX, y: deckY + leftEdge };
                 
                 // Snap to deck edges
                 const boardLeft = board.x - board.width / 2;
@@ -1528,24 +1553,30 @@
                 const boardTop = board.y - board.height / 2;
                 const boardBottom = board.y + board.height / 2;
                 
-                // Snap to left deck edge
-                if (Math.abs(boardLeft - deckX) < snapDistance) {
+                // Snap to left deck edge (vertical line from top-left to left-bottom)
+                if (Math.abs(boardLeft - deckX) < snapDistance && 
+                    board.y >= deckY && board.y <= deckY + leftEdge) {
                     board.x = deckX + board.width / 2;
                     snapped = true;
                 }
-                // Snap to right deck edge
-                else if (Math.abs(boardRight - (deckX + topEdge)) < snapDistance) {
+                
+                // Snap to top deck edge (horizontal line from top-left to top-right)
+                if (Math.abs(boardTop - deckY) < snapDistance && 
+                    board.x >= deckX && board.x <= deckX + topEdge) {
+                    board.y = deckY + board.height / 2;
+                    snapped = true;
+                }
+                
+                // Snap to right deck edge (vertical line from top-right to bottom-right)
+                if (Math.abs(boardRight - (deckX + topEdge)) < snapDistance && 
+                    board.y >= deckY && board.y <= deckY + rightEdge) {
                     board.x = deckX + topEdge - board.width / 2;
                     snapped = true;
                 }
                 
-                // Snap to top deck edge
-                if (Math.abs(boardTop - deckY) < snapDistance) {
-                    board.y = deckY + board.height / 2;
-                    snapped = true;
-                }
-                // Snap to bottom deck edge
-                else if (Math.abs(boardBottom - (deckY + rightEdge)) < snapDistance) {
+                // Snap to bottom deck edge (horizontal line from bottom-left to bottom-right)
+                if (Math.abs(boardBottom - (deckY + rightEdge)) < snapDistance && 
+                    board.x >= (deckX + topEdge - bottomEdge) && board.x <= (deckX + topEdge)) {
                     board.y = deckY + rightEdge - board.height / 2;
                     snapped = true;
                 }
