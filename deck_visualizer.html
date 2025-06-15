@@ -754,12 +754,20 @@
                 this.ctx.lineWidth = 3;
                 this.ctx.fillStyle = '#f8f8f8';
                 
-                // Snap deck position to grid
+                // Use consistent logical coordinates for deck position
                 const baseX = 150;
                 const baseY = 100;
-                const snappedDeckPos = this.snapToGrid(baseX, baseY);
-                const x = snappedDeckPos.x;
-                const y = snappedDeckPos.y;
+                
+                // Calculate deck position in logical coordinates and snap to grid
+                const deckLogicalX = baseX / this.scale;
+                const deckLogicalY = baseY / this.scale;
+                const snapSpacing = this.snapGridSize; // 1/8" in feet
+                const snappedDeckLogicalX = Math.round(deckLogicalX / snapSpacing) * snapSpacing;
+                const snappedDeckLogicalY = Math.round(deckLogicalY / snapSpacing) * snapSpacing;
+                
+                // Convert back to screen coordinates for drawing
+                const x = snappedDeckLogicalX * this.scale;
+                const y = snappedDeckLogicalY * this.scale;
                 
                 const te = topEdge * this.scale;
                 const re = rightEdge * this.scale;
@@ -793,12 +801,20 @@
                 this.ctx.strokeStyle = '#8B4513';
                 this.ctx.lineWidth = 2;
                 
-                // Use same snapped position as deck outline
+                // Use same consistent logical coordinates as deck outline
                 const baseX = 150;
                 const baseY = 100;
-                const snappedDeckPos = this.snapToGrid(baseX, baseY);
-                const x = snappedDeckPos.x;
-                const y = snappedDeckPos.y;
+                
+                // Calculate deck position in logical coordinates and snap to grid
+                const deckLogicalX = baseX / this.scale;
+                const deckLogicalY = baseY / this.scale;
+                const snapSpacing = this.snapGridSize; // 1/8" in feet
+                const snappedDeckLogicalX = Math.round(deckLogicalX / snapSpacing) * snapSpacing;
+                const snappedDeckLogicalY = Math.round(deckLogicalY / snapSpacing) * snapSpacing;
+                
+                // Convert back to screen coordinates for drawing
+                const x = snappedDeckLogicalX * this.scale;
+                const y = snappedDeckLogicalY * this.scale;
                 
                 const te = topEdge * this.scale;
                 const re = rightEdge * this.scale;
@@ -967,15 +983,27 @@
                     this.ctx.lineWidth = 0.25;
                 }
                 
-                // Calculate grid origin accounting for view offset (panning)
+                // Calculate grid origin accounting for view offset (panning) and zoom
                 // Use the deck position as the reference point for grid alignment
                 const baseX = 150;
                 const baseY = 100;
-                const snappedDeckPos = this.snapToGrid(baseX, baseY);
                 
-                // Calculate the grid offset in world coordinates
-                const worldOffsetX = snappedDeckPos.x % gridSpacing;
-                const worldOffsetY = snappedDeckPos.y % gridSpacing;
+                // Calculate deck position in logical coordinates (feet)
+                const deckLogicalX = baseX / this.scale;
+                const deckLogicalY = baseY / this.scale;
+                
+                // Snap deck position to logical grid
+                const snapSpacing = this.snapGridSize; // 1/8" in feet
+                const snappedDeckLogicalX = Math.round(deckLogicalX / snapSpacing) * snapSpacing;
+                const snappedDeckLogicalY = Math.round(deckLogicalY / snapSpacing) * snapSpacing;
+                
+                // Convert back to screen coordinates
+                const snappedDeckScreenX = snappedDeckLogicalX * this.scale;
+                const snappedDeckScreenY = snappedDeckLogicalY * this.scale;
+                
+                // Calculate the grid offset in screen coordinates
+                const worldOffsetX = snappedDeckScreenX % gridSpacing;
+                const worldOffsetY = snappedDeckScreenY % gridSpacing;
                 
                 // Convert to screen coordinates by adding view offset
                 const screenOffsetX = (worldOffsetX + this.viewOffset.x) % gridSpacing;
@@ -1033,12 +1061,20 @@
             }
             
             drawEdgeHandles(topEdge, rightEdge, bottomEdge, leftEdge, extWidth, extLength) {
-                // Use same snapped position as deck outline
+                // Use same consistent logical coordinates as deck outline
                 const baseX = 150;
                 const baseY = 100;
-                const snappedDeckPos = this.snapToGrid(baseX, baseY);
-                const x = snappedDeckPos.x;
-                const y = snappedDeckPos.y;
+                
+                // Calculate deck position in logical coordinates and snap to grid
+                const deckLogicalX = baseX / this.scale;
+                const deckLogicalY = baseY / this.scale;
+                const snapSpacing = this.snapGridSize; // 1/8" in feet
+                const snappedDeckLogicalX = Math.round(deckLogicalX / snapSpacing) * snapSpacing;
+                const snappedDeckLogicalY = Math.round(deckLogicalY / snapSpacing) * snapSpacing;
+                
+                // Convert back to screen coordinates for drawing
+                const x = snappedDeckLogicalX * this.scale;
+                const y = snappedDeckLogicalY * this.scale;
                 
                 const te = topEdge * this.scale;
                 const re = rightEdge * this.scale;
@@ -1775,28 +1811,15 @@
                         const newScale = Math.max(this.minScale, Math.min(this.maxScale, this.currentScale * zoomFactor));
                         
                         if (newScale !== this.currentScale) {
-                            // Apply zoom by scaling everything
+                            // Apply zoom by scaling only the drawing scale
+                            // Keep all positions and dimensions in logical units
                             const scaleChange = newScale / this.currentScale;
                             
-                            // Scale the main drawing scale
+                            // Only scale the main drawing scale - this affects how everything is rendered
                             this.scale *= scaleChange;
                             
-                            // Scale all board positions and sizes to maintain their relative position to deck
-                            const baseX = 150;
-                            const baseY = 100;
-                            const snappedDeckPos = this.snapToGrid(baseX, baseY);
-                            
-                            this.boards.forEach(board => {
-                                // Scale position relative to deck origin
-                                const relativeX = board.x - snappedDeckPos.x;
-                                const relativeY = board.y - snappedDeckPos.y;
-                                board.x = snappedDeckPos.x + relativeX * scaleChange;
-                                board.y = snappedDeckPos.y + relativeY * scaleChange;
-                                
-                                // Scale board dimensions
-                                board.width *= scaleChange;
-                                board.height *= scaleChange;
-                            });
+                            // Don't scale board positions or dimensions - they stay in logical coordinates
+                            // The rendering will automatically scale them via this.scale
                             
                             this.currentScale = newScale;
                             console.log('Zoom:', this.currentScale, 'Scale:', this.scale);
