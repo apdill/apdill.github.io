@@ -961,49 +961,48 @@
                     this.ctx.lineWidth = 0.25;
                 }
                 
-                // Get the same snap grid origin that the deck uses
-                const snapSpacing = this.snapGridSize * this.scale; // 1/8" grid in pixels
-                
-                // Find the offset to align visual grid with snap grid
-                // We want the visual grid to align with the snap grid at the deck origin
+                // Calculate grid origin accounting for view offset (panning)
+                // Use the deck position as the reference point for grid alignment
                 const baseX = 150;
                 const baseY = 100;
                 const snappedDeckPos = this.snapToGrid(baseX, baseY);
                 
-                // Calculate the offset needed to align grids
-                const offsetX = snappedDeckPos.x % gridSpacing;
-                const offsetY = snappedDeckPos.y % gridSpacing;
+                // Calculate the grid offset in world coordinates
+                const worldOffsetX = snappedDeckPos.x % gridSpacing;
+                const worldOffsetY = snappedDeckPos.y % gridSpacing;
                 
-                // Draw vertical grid lines starting from the aligned offset
-                for (let i = offsetX; i < this.canvas.width; i += gridSpacing) {
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(i, 0);
-                    this.ctx.lineTo(i, this.canvas.height);
-                    this.ctx.stroke();
+                // Convert to screen coordinates by adding view offset
+                const screenOffsetX = (worldOffsetX + this.viewOffset.x) % gridSpacing;
+                const screenOffsetY = (worldOffsetY + this.viewOffset.y) % gridSpacing;
+                
+                // Ensure positive offsets
+                const offsetX = screenOffsetX >= 0 ? screenOffsetX : screenOffsetX + gridSpacing;
+                const offsetY = screenOffsetY >= 0 ? screenOffsetY : screenOffsetY + gridSpacing;
+                
+                // Calculate the range of grid lines to draw (extend beyond canvas for panning)
+                const startX = offsetX - gridSpacing * Math.ceil(offsetX / gridSpacing);
+                const endX = this.canvas.width + gridSpacing;
+                const startY = offsetY - gridSpacing * Math.ceil(offsetY / gridSpacing);
+                const endY = this.canvas.height + gridSpacing;
+                
+                // Draw vertical grid lines across entire viewport
+                for (let x = startX; x <= endX; x += gridSpacing) {
+                    if (x >= -gridSpacing && x <= this.canvas.width + gridSpacing) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(x, -gridSpacing);
+                        this.ctx.lineTo(x, this.canvas.height + gridSpacing);
+                        this.ctx.stroke();
+                    }
                 }
                 
-                // Draw lines in the negative direction too
-                for (let i = offsetX - gridSpacing; i >= 0; i -= gridSpacing) {
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(i, 0);
-                    this.ctx.lineTo(i, this.canvas.height);
-                    this.ctx.stroke();
-                }
-                
-                // Draw horizontal grid lines starting from the aligned offset
-                for (let i = offsetY; i < this.canvas.height; i += gridSpacing) {
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(0, i);
-                    this.ctx.lineTo(this.canvas.width, i);
-                    this.ctx.stroke();
-                }
-                
-                // Draw lines in the negative direction too
-                for (let i = offsetY - gridSpacing; i >= 0; i -= gridSpacing) {
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(0, i);
-                    this.ctx.lineTo(this.canvas.width, i);
-                    this.ctx.stroke();
+                // Draw horizontal grid lines across entire viewport
+                for (let y = startY; y <= endY; y += gridSpacing) {
+                    if (y >= -gridSpacing && y <= this.canvas.height + gridSpacing) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(-gridSpacing, y);
+                        this.ctx.lineTo(this.canvas.width + gridSpacing, y);
+                        this.ctx.stroke();
+                    }
                 }
             }
             
