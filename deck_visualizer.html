@@ -467,8 +467,8 @@
                     <div class="control-group">
                         <label>Board Direction:</label>
                         <select id="boardDirection">
-                            <option value="horizontal">Horizontal</option>
-                            <option value="vertical" selected>Vertical</option>
+                            <option value="horizontal" selected>Horizontal</option>
+                            <option value="vertical">Vertical</option>
                         </select>
                     </div>
                     
@@ -484,6 +484,8 @@
                         • Tap blue edge handles to edit deck dimensions<br>
                         • <strong>Double-tap</strong> boards to edit their size<br>
                         • Tap and drag boards to reposition<br>
+                        • <strong>Mobile:</strong> Long press (hold) boards to rotate them<br>
+                        • <strong>Desktop:</strong> Right-click boards to rotate them<br>
                         • <strong>Desktop:</strong> Drag empty space to box-select multiple boards<br>
                         • <strong>Desktop:</strong> Hold Ctrl/Cmd + click to add/remove from selection<br><br>
                         
@@ -602,6 +604,9 @@
                 this.currentScale = 1;
                 this.minScale = 0.5;
                 this.maxScale = 3;
+                this.longPressTimer = null;
+                this.longPressThreshold = 500; // 500ms for long press
+                this.longPressTriggered = false;
                 
                 // Snap-to-grid settings
                 this.snapGridSize = 1/8 / 12; // 1/8 inch in feet
@@ -1622,6 +1627,14 @@
                         this.dragOffset.y = worldPos.y - clickedBoard.y;
                         this.saveState();
                         // Don't set isDragging yet - wait for movement
+                        
+                        // Start long press timer for rotation
+                        this.longPressTriggered = false;
+                        this.longPressTimer = setTimeout(() => {
+                            this.longPressTriggered = true;
+                            this.rotateBoard(clickedBoard);
+                            console.log('Long press detected - rotating board');
+                        }, this.longPressThreshold);
                     } else {
                         // Start panning for single finger in empty space
                         console.log('Starting pan mode');
@@ -1680,6 +1693,11 @@
                         // Start or continue dragging a board
                         if (!this.isDragging) {
                             this.isDragging = true;
+                            // Cancel long press timer when starting to drag
+                            if (this.longPressTimer) {
+                                clearTimeout(this.longPressTimer);
+                                this.longPressTimer = null;
+                            }
                         }
                         
                         const worldPos = this.screenToWorld(touch.x, touch.y);
@@ -1790,8 +1808,14 @@
                 
                 const touchDuration = Date.now() - this.touchStartTime;
                 
-                if (this.touches.length === 1 && touchDuration < 300) {
-                    // Quick tap - check for double tap
+                // Clean up long press timer
+                if (this.longPressTimer) {
+                    clearTimeout(this.longPressTimer);
+                    this.longPressTimer = null;
+                }
+                
+                if (this.touches.length === 1 && touchDuration < 300 && !this.longPressTriggered) {
+                    // Quick tap - check for double tap (only if long press wasn't triggered)
                     const touch = this.touches[0];
                     const worldPos = this.screenToWorld(touch.x, touch.y);
                     
@@ -1811,6 +1835,27 @@
                 this.touches = [];
                 this.selectedEdge = null;
                 this.initialPinchDistance = 0;
+                this.longPressTriggered = false;
+                
+                this.drawDeck();
+            }
+            
+            rotateBoard(board) {
+                // Save state before rotation
+                this.saveState();
+                
+                // Rotate by 90 degrees
+                board.rotation += Math.PI / 2;
+                
+                // Normalize rotation to 0-2π range
+                if (board.rotation >= 2 * Math.PI) {
+                    board.rotation -= 2 * Math.PI;
+                }
+                
+                // Provide haptic feedback if available
+                if (navigator.vibrate) {
+                    navigator.vibrate(50); // Short vibration
+                }
                 
                 this.drawDeck();
             }
@@ -2199,21 +2244,7 @@
             const startY = snappedDeckPos.y + 1 * deckViz.scale;
             
             if (pattern === 'straight') {
-                if (boardDirection === 'vertical') {
-                    // Vertical boards (running left to right)
-                    const spacing = (boardWidth + boardGap) * deckViz.scale;
-                    const numBoards = Math.floor((topEdge - 2) / (boardWidth + boardGap));
-                    
-                    for (let i = 0; i < numBoards; i++) {
-                        const board = deckViz.createBoard(
-                            startX + i * spacing + spacing/2,
-                            startY + (rightEdge * deckViz.scale) / 2,
-                            boardWidth,
-                            rightEdge - 2
-                        );
-                        deckViz.boards.push(board);
-                    }
-                } else {
+                if (boardDirection === 'horizontal') {
                     // Horizontal boards (running front to back)
                     const spacing = (boardWidth + boardGap) * deckViz.scale;
                     const numBoards = Math.floor((rightEdge - 2) / (boardWidth + boardGap));
@@ -2226,6 +2257,20 @@
                             topEdge - 2
                         );
                         board.rotation = Math.PI / 2;
+                        deckViz.boards.push(board);
+                    }
+                } else {
+                    // Vertical boards (running left to right)
+                    const spacing = (boardWidth + boardGap) * deckViz.scale;
+                    const numBoards = Math.floor((topEdge - 2) / (boardWidth + boardGap));
+                    
+                    for (let i = 0; i < numBoards; i++) {
+                        const board = deckViz.createBoard(
+                            startX + i * spacing + spacing/2,
+                            startY + (rightEdge * deckViz.scale) / 2,
+                            boardWidth,
+                            rightEdge - 2
+                        );
                         deckViz.boards.push(board);
                     }
                 }
