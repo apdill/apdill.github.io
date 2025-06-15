@@ -143,6 +143,7 @@
             box-shadow: 0 8px 32px rgba(0,0,0,0.4), 
                         inset 0 1px 0 rgba(255,255,255,0.1);
             background: #a8c186;
+            touch-action: none; /* Prevent browser touch handling */
         }
         
         #deckCanvas:active {
@@ -1520,6 +1521,7 @@
             
             handleTouchStart(e) {
                 e.preventDefault();
+                console.log('Touch start:', e.touches.length, 'touches');
                 
                 const rect = this.canvas.getBoundingClientRect();
                 this.touches = Array.from(e.touches).map(touch => ({
@@ -1562,11 +1564,17 @@
                         this.dragOffset.x = worldPos.x - clickedBoard.x;
                         this.dragOffset.y = worldPos.y - clickedBoard.y;
                         this.saveState();
+                        // Don't set isDragging yet - wait for movement
                     } else {
                         // Start panning for single finger in empty space
+                        console.log('Starting pan mode');
                         this.isPanning = true;
                         this.panStart.x = touch.x;
                         this.panStart.y = touch.y;
+                        // Clear any board selection when starting to pan
+                        this.selectedBoard = null;
+                        this.boards.forEach(b => b.selected = false);
+                        this.selectedBoards = [];
                     }
                 } else if (this.touches.length === 2) {
                     // Two finger touch - pinch to zoom (let browser handle) and pan
@@ -1598,8 +1606,12 @@
                     // Single finger movement
                     const touch = currentTouches[0];
                     
-                    if (this.selectedBoard && this.isDragging) {
-                        // Dragging a board
+                    if (this.selectedBoard && !this.isPanning) {
+                        // Start or continue dragging a board
+                        if (!this.isDragging) {
+                            this.isDragging = true;
+                        }
+                        
                         const worldPos = this.screenToWorld(touch.x, touch.y);
                         const rawX = worldPos.x - this.dragOffset.x;
                         const rawY = worldPos.y - this.dragOffset.y;
@@ -1648,17 +1660,13 @@
                         // Single finger panning
                         const deltaX = touch.x - this.panStart.x;
                         const deltaY = touch.y - this.panStart.y;
+                        console.log('Panning:', deltaX, deltaY);
                         
                         this.viewOffset.x += deltaX;
                         this.viewOffset.y += deltaY;
                         
                         this.panStart.x = touch.x;
                         this.panStart.y = touch.y;
-                    } else {
-                        // Start dragging if we have a selected board
-                        if (this.selectedBoard) {
-                            this.isDragging = true;
-                        }
                     }
                 } else if (currentTouches.length === 2 && this.touches.length === 2) {
                     // Two finger panning (and browser handles pinch zoom automatically)
