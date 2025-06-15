@@ -474,14 +474,14 @@
                         • Tap blue edge handles to edit deck dimensions<br>
                         • <strong>Double-tap</strong> boards to edit their size<br>
                         • Tap and drag boards to reposition<br>
-                        • <strong>Mobile:</strong> Long press boards to rotate (coming soon)<br>
-                        • Drag empty space to box-select multiple boards<br>
-                        • Hold Ctrl/Cmd + click to add/remove from selection<br><br>
+                        • <strong>Desktop:</strong> Drag empty space to box-select multiple boards<br>
+                        • <strong>Desktop:</strong> Hold Ctrl/Cmd + click to add/remove from selection<br><br>
                         
                         <strong>🔍 Navigation:</strong><br>
                         • <strong>Desktop:</strong> Shift + drag or middle mouse to pan around<br>
-                        • <strong>Mobile:</strong> Two-finger drag to pan, pinch to zoom<br>
-                        • <strong>Box select</strong> by dragging in empty space<br><br>
+                        • <strong>Desktop:</strong> Box select by dragging in empty space<br>
+                        • <strong>Mobile:</strong> Single finger drag to pan around<br>
+                        • <strong>Mobile:</strong> Pinch to zoom in/out<br><br>
                         
                         <strong>⌨️ Keyboard Shortcuts:</strong><br>
                         • <strong>Ctrl+C</strong> to copy, <strong>Ctrl+V</strong> to paste boards<br>
@@ -1531,7 +1531,7 @@
                 this.touchStartTime = Date.now();
                 
                 if (this.touches.length === 1) {
-                    // Single touch - potential tap or drag
+                    // Single touch - check for immediate interaction or prepare for panning
                     const touch = this.touches[0];
                     const worldPos = this.screenToWorld(touch.x, touch.y);
                     
@@ -1563,17 +1563,13 @@
                         this.dragOffset.y = worldPos.y - clickedBoard.y;
                         this.saveState();
                     } else {
-                        // Start box selection
-                        this.isBoxSelecting = true;
-                        this.boxStart.x = worldPos.x;
-                        this.boxStart.y = worldPos.y;
-                        this.boxEnd.x = worldPos.x;
-                        this.boxEnd.y = worldPos.y;
-                        this.boards.forEach(b => b.selected = false);
-                        this.selectedBoards = [];
+                        // Start panning for single finger in empty space
+                        this.isPanning = true;
+                        this.panStart.x = touch.x;
+                        this.panStart.y = touch.y;
                     }
                 } else if (this.touches.length === 2) {
-                    // Two finger touch - start panning
+                    // Two finger touch - pinch to zoom (let browser handle) and pan
                     this.isPanning = true;
                     const centerX = (this.touches[0].x + this.touches[1].x) / 2;
                     const centerY = (this.touches[0].y + this.touches[1].y) / 2;
@@ -1601,10 +1597,10 @@
                 if (currentTouches.length === 1 && this.touches.length === 1) {
                     // Single finger movement
                     const touch = currentTouches[0];
-                    const worldPos = this.screenToWorld(touch.x, touch.y);
                     
                     if (this.selectedBoard && this.isDragging) {
                         // Dragging a board
+                        const worldPos = this.screenToWorld(touch.x, touch.y);
                         const rawX = worldPos.x - this.dragOffset.x;
                         const rawY = worldPos.y - this.dragOffset.y;
                         const snapped = this.snapToGrid(rawX, rawY);
@@ -1648,25 +1644,16 @@
                                 board.y = y;
                             });
                         }
-                    } else if (this.isBoxSelecting) {
-                        // Box selection
-                        this.boxEnd.x = worldPos.x;
-                        this.boxEnd.y = worldPos.y;
+                    } else if (this.isPanning) {
+                        // Single finger panning
+                        const deltaX = touch.x - this.panStart.x;
+                        const deltaY = touch.y - this.panStart.y;
                         
-                        const minX = Math.min(this.boxStart.x, this.boxEnd.x);
-                        const maxX = Math.max(this.boxStart.x, this.boxEnd.x);
-                        const minY = Math.min(this.boxStart.y, this.boxEnd.y);
-                        const maxY = Math.max(this.boxStart.y, this.boxEnd.y);
+                        this.viewOffset.x += deltaX;
+                        this.viewOffset.y += deltaY;
                         
-                        this.boards.forEach(board => {
-                            const inBox = board.x >= minX && board.x <= maxX && 
-                                         board.y >= minY && board.y <= maxY;
-                            
-                            if (inBox && !this.selectedBoards.includes(board)) {
-                                this.selectedBoards.push(board);
-                                board.selected = true;
-                            }
-                        });
+                        this.panStart.x = touch.x;
+                        this.panStart.y = touch.y;
                     } else {
                         // Start dragging if we have a selected board
                         if (this.selectedBoard) {
@@ -1674,7 +1661,7 @@
                         }
                     }
                 } else if (currentTouches.length === 2 && this.touches.length === 2) {
-                    // Two finger panning
+                    // Two finger panning (and browser handles pinch zoom automatically)
                     const centerX = (currentTouches[0].x + currentTouches[1].x) / 2;
                     const centerY = (currentTouches[0].y + currentTouches[1].y) / 2;
                     
