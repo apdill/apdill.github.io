@@ -1,1 +1,137 @@
-Hello World
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APD's Projects</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            max-width: 800px;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            background: linear-gradient(145deg, #3498db, #2980b9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+            opacity: 0.8;
+        }
+        
+        .project-card {
+            background: linear-gradient(145deg, rgba(255,255,255,0.1) 0%, rgba(248,249,250,0.05) 100%);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 16px;
+            padding: 30px;
+            margin: 20px 0;
+            backdrop-filter: blur(20px) saturate(180%);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .project-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+        }
+        
+        .project-title {
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            color: #3498db;
+        }
+        
+        .project-description {
+            margin-bottom: 20px;
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+        
+        .launch-btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(145deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .launch-btn:hover {
+            background: linear-gradient(145deg, #2980b9 0%, #1f5f8b 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .feature {
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .feature strong {
+            color: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>APD's Projects</h1>
+        <p class="subtitle">Interactive tools and visualizations</p>
+        
+        <div class="project-card">
+            <h2 class="project-title">🔧 Deck Layout Visualizer</h2>
+            <p class="project-description">
+                A professional CAD-style tool for planning deck construction. Design your deck layout with precision, 
+                drag-and-drop boards, and visualize your project before building.
+            </p>
+            
+            <div class="features">
+                <div class="feature"><strong>Interactive Design:</strong> Drag & drop boards with smart snapping</div>
+                <div class="feature"><strong>Precise Grid:</strong> 1/8" precision alignment system</div>
+                <div class="feature"><strong>Real Dimensions:</strong> Edit deck and board sizes with live preview</div>
+                <div class="feature"><strong>Professional UI:</strong> Glass-morphism design with modern controls</div>
+                <div class="feature"><strong>Export Ready:</strong> Plan your material lists and cuts</div>
+                <div class="feature"><strong>Keyboard Shortcuts:</strong> Copy, paste, undo, and more</div>
+            </div>
+            
+            <a href="deck_visualizer.html" class="launch-btn">🚀 Launch Deck Visualizer</a>
+        </div>
+        
+        <p style="margin-top: 40px; opacity: 0.6; font-size: 0.9rem;">
+            Built with HTML5 Canvas, modern CSS, and vanilla JavaScript
+        </p>
+    </div>
+</body>
+</html>
