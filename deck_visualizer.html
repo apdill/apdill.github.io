@@ -471,16 +471,16 @@
                 <div id="instructions" class="controls-content collapsed">
                     <div class="info">
                         <strong>🎯 Basic Controls:</strong><br>
-                        • Click blue edge handles to edit deck dimensions<br>
-                        • <strong>Double-click</strong> boards to edit their size<br>
-                        • Click and drag boards to reposition<br>
-                        • Right-click boards to rotate<br>
+                        • Tap blue edge handles to edit deck dimensions<br>
+                        • <strong>Double-tap</strong> boards to edit their size<br>
+                        • Tap and drag boards to reposition<br>
+                        • <strong>Mobile:</strong> Long press boards to rotate (coming soon)<br>
                         • Drag empty space to box-select multiple boards<br>
                         • Hold Ctrl/Cmd + click to add/remove from selection<br><br>
                         
                         <strong>🔍 Navigation:</strong><br>
-                        • <strong>Shift + drag</strong> or <strong>middle mouse</strong> to pan around<br>
-                        • <strong>Mouse wheel</strong> to scroll (panning coming soon)<br>
+                        • <strong>Desktop:</strong> Shift + drag or middle mouse to pan around<br>
+                        • <strong>Mobile:</strong> Two-finger drag to pan, pinch to zoom<br>
                         • <strong>Box select</strong> by dragging in empty space<br><br>
                         
                         <strong>⌨️ Keyboard Shortcuts:</strong><br>
@@ -584,6 +584,11 @@
                 this.panStart = { x: 0, y: 0 };
                 this.viewOffset = { x: 0, y: 0 };
                 
+                // Touch functionality
+                this.touches = [];
+                this.lastTouchDistance = 0;
+                this.touchStartTime = 0;
+                
                 // Snap-to-grid settings
                 this.snapGridSize = 1/8 / 12; // 1/8 inch in feet
                 this.snapEnabled = true; // Re-enable snapping
@@ -603,6 +608,11 @@
                 this.canvas.addEventListener('mouseup', this.handleMouseUp.bind(this));
                 this.canvas.addEventListener('contextmenu', this.handleRightClick.bind(this));
                 this.canvas.addEventListener('wheel', this.handleWheel.bind(this));
+                
+                // Touch events for mobile
+                this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this));
+                this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this));
+                this.canvas.addEventListener('touchend', this.handleTouchEnd.bind(this));
                 
                 // Change cursor for edge handles and panning
                 this.canvas.addEventListener('mousemove', (e) => {
@@ -1506,6 +1516,211 @@
                 // Simple zoom by adjusting scale (optional enhancement)
                 // For now, just prevent default scrolling behavior
                 // Could add zoom functionality here later
+            }
+            
+            handleTouchStart(e) {
+                e.preventDefault();
+                
+                const rect = this.canvas.getBoundingClientRect();
+                this.touches = Array.from(e.touches).map(touch => ({
+                    id: touch.identifier,
+                    x: touch.clientX - rect.left,
+                    y: touch.clientY - rect.top
+                }));
+                
+                this.touchStartTime = Date.now();
+                
+                if (this.touches.length === 1) {
+                    // Single touch - potential tap or drag
+                    const touch = this.touches[0];
+                    const worldPos = this.screenToWorld(touch.x, touch.y);
+                    
+                    // Check if touching an edge handle
+                    const clickedEdge = this.getEdgeAtPoint(worldPos.x, worldPos.y);
+                    if (clickedEdge) {
+                        this.selectedEdge = clickedEdge;
+                        this.showDimensionInput(clickedEdge);
+                        this.drawDeck();
+                        return;
+                    }
+                    
+                    // Check if touching a board
+                    let clickedBoard = null;
+                    for (let i = this.boards.length - 1; i >= 0; i--) {
+                        if (this.isPointInBoard(worldPos.x, worldPos.y, this.boards[i])) {
+                            clickedBoard = this.boards[i];
+                            break;
+                        }
+                    }
+                    
+                    if (clickedBoard) {
+                        // Select the board and prepare for dragging
+                        this.boards.forEach(b => b.selected = false);
+                        this.selectedBoards = [clickedBoard];
+                        clickedBoard.selected = true;
+                        this.selectedBoard = clickedBoard;
+                        this.dragOffset.x = worldPos.x - clickedBoard.x;
+                        this.dragOffset.y = worldPos.y - clickedBoard.y;
+                        this.saveState();
+                    } else {
+                        // Start box selection
+                        this.isBoxSelecting = true;
+                        this.boxStart.x = worldPos.x;
+                        this.boxStart.y = worldPos.y;
+                        this.boxEnd.x = worldPos.x;
+                        this.boxEnd.y = worldPos.y;
+                        this.boards.forEach(b => b.selected = false);
+                        this.selectedBoards = [];
+                    }
+                } else if (this.touches.length === 2) {
+                    // Two finger touch - start panning
+                    this.isPanning = true;
+                    const centerX = (this.touches[0].x + this.touches[1].x) / 2;
+                    const centerY = (this.touches[0].y + this.touches[1].y) / 2;
+                    this.panStart.x = centerX;
+                    this.panStart.y = centerY;
+                    
+                    // Stop any other interactions
+                    this.isDragging = false;
+                    this.isBoxSelecting = false;
+                }
+                
+                this.drawDeck();
+            }
+            
+            handleTouchMove(e) {
+                e.preventDefault();
+                
+                const rect = this.canvas.getBoundingClientRect();
+                const currentTouches = Array.from(e.touches).map(touch => ({
+                    id: touch.identifier,
+                    x: touch.clientX - rect.left,
+                    y: touch.clientY - rect.top
+                }));
+                
+                if (currentTouches.length === 1 && this.touches.length === 1) {
+                    // Single finger movement
+                    const touch = currentTouches[0];
+                    const worldPos = this.screenToWorld(touch.x, touch.y);
+                    
+                    if (this.selectedBoard && this.isDragging) {
+                        // Dragging a board
+                        const rawX = worldPos.x - this.dragOffset.x;
+                        const rawY = worldPos.y - this.dragOffset.y;
+                        const snapped = this.snapToGrid(rawX, rawY);
+                        
+                        const deltaX = snapped.x - this.selectedBoard.x;
+                        const deltaY = snapped.y - this.selectedBoard.y;
+                        
+                        const originalPositions = this.selectedBoards.map(board => ({
+                            board: board,
+                            x: board.x,
+                            y: board.y
+                        }));
+                        
+                        this.selectedBoards.forEach(board => {
+                            board.x += deltaX;
+                            board.y += deltaY;
+                        });
+                        
+                        const wasSnapped = this.snapToNearbyObjects(this.selectedBoard);
+                        let hasOverlap = false;
+                        
+                        if (!wasSnapped) {
+                            for (let board of this.selectedBoards) {
+                                if (this.wouldOverlap(board, ...this.selectedBoards)) {
+                                    hasOverlap = true;
+                                    break;
+                                }
+                            }
+                        } else {
+                            for (let board of this.selectedBoards) {
+                                if (this.wouldSignificantlyOverlap(board, ...this.selectedBoards)) {
+                                    hasOverlap = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (hasOverlap) {
+                            originalPositions.forEach(({board, x, y}) => {
+                                board.x = x;
+                                board.y = y;
+                            });
+                        }
+                    } else if (this.isBoxSelecting) {
+                        // Box selection
+                        this.boxEnd.x = worldPos.x;
+                        this.boxEnd.y = worldPos.y;
+                        
+                        const minX = Math.min(this.boxStart.x, this.boxEnd.x);
+                        const maxX = Math.max(this.boxStart.x, this.boxEnd.x);
+                        const minY = Math.min(this.boxStart.y, this.boxEnd.y);
+                        const maxY = Math.max(this.boxStart.y, this.boxEnd.y);
+                        
+                        this.boards.forEach(board => {
+                            const inBox = board.x >= minX && board.x <= maxX && 
+                                         board.y >= minY && board.y <= maxY;
+                            
+                            if (inBox && !this.selectedBoards.includes(board)) {
+                                this.selectedBoards.push(board);
+                                board.selected = true;
+                            }
+                        });
+                    } else {
+                        // Start dragging if we have a selected board
+                        if (this.selectedBoard) {
+                            this.isDragging = true;
+                        }
+                    }
+                } else if (currentTouches.length === 2 && this.touches.length === 2) {
+                    // Two finger panning
+                    const centerX = (currentTouches[0].x + currentTouches[1].x) / 2;
+                    const centerY = (currentTouches[0].y + currentTouches[1].y) / 2;
+                    
+                    if (this.isPanning) {
+                        const deltaX = centerX - this.panStart.x;
+                        const deltaY = centerY - this.panStart.y;
+                        
+                        this.viewOffset.x += deltaX;
+                        this.viewOffset.y += deltaY;
+                        
+                        this.panStart.x = centerX;
+                        this.panStart.y = centerY;
+                    }
+                }
+                
+                this.touches = currentTouches;
+                this.drawDeck();
+            }
+            
+            handleTouchEnd(e) {
+                e.preventDefault();
+                
+                const touchDuration = Date.now() - this.touchStartTime;
+                
+                if (this.touches.length === 1 && touchDuration < 300) {
+                    // Quick tap - check for double tap
+                    const touch = this.touches[0];
+                    const worldPos = this.screenToWorld(touch.x, touch.y);
+                    
+                    // Check if double-tapping a board
+                    for (let board of this.boards) {
+                        if (this.isPointInBoard(worldPos.x, worldPos.y, board)) {
+                            this.showBoardDimensionInput(board, touch.x, touch.y);
+                            break;
+                        }
+                    }
+                }
+                
+                // Reset states
+                this.isDragging = false;
+                this.isBoxSelecting = false;
+                this.isPanning = false;
+                this.touches = [];
+                this.selectedEdge = null;
+                
+                this.drawDeck();
             }
             
             isPointInBoard(px, py, board) {
