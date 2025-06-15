@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APD's Projects</title>
+    <title>Deck Layout Visualizer</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            padding: 0;
+            padding: 20px;
             background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
             color: white;
             min-height: 100vh;
@@ -19,13 +19,13 @@
         }
         
         .container {
-            max-width: 800px;
+            max-width: 600px;
             padding: 40px;
             text-align: center;
         }
         
         h1 {
-            font-size: 3rem;
+            font-size: 2.5rem;
             margin-bottom: 20px;
             background: linear-gradient(145deg, #3498db, #2980b9);
             -webkit-background-clip: text;
@@ -34,9 +34,10 @@
         }
         
         .subtitle {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             margin-bottom: 40px;
             opacity: 0.8;
+            line-height: 1.5;
         }
         
         .project-card {
@@ -55,26 +56,22 @@
             box-shadow: 0 12px 40px rgba(0,0,0,0.4);
         }
         
-        .project-title {
-            font-size: 1.8rem;
-            margin-bottom: 15px;
-            color: #3498db;
-        }
-        
         .project-description {
-            margin-bottom: 20px;
+            margin-bottom: 30px;
             line-height: 1.6;
             opacity: 0.9;
+            font-size: 1.1rem;
         }
         
         .launch-btn {
             display: inline-block;
-            padding: 12px 30px;
+            padding: 15px 40px;
             background: linear-gradient(145deg, #3498db 0%, #2980b9 100%);
             color: white;
             text-decoration: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-weight: 600;
+            font-size: 1.1rem;
             transition: all 0.3s ease;
             box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
         }
@@ -87,50 +84,64 @@
         
         .features {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 15px;
-            margin: 20px 0;
+            margin: 25px 0;
             text-align: left;
         }
         
         .feature {
-            padding: 10px;
+            padding: 15px;
             background: rgba(255,255,255,0.05);
             border-radius: 8px;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
         }
         
         .feature strong {
             color: #3498db;
         }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .features {
+                grid-template-columns: 1fr;
+            }
+            
+            .launch-btn {
+                padding: 12px 30px;
+                font-size: 1rem;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>APD's Projects</h1>
-        <p class="subtitle">Interactive tools and visualizations</p>
+        <h1>🔧 Deck Layout Visualizer</h1>
+        <p class="subtitle">
+            Professional CAD-style tool for planning deck construction. Design your deck layout with precision, 
+            drag-and-drop boards, and visualize your project before building.
+        </p>
         
         <div class="project-card">
-            <h2 class="project-title">🔧 Deck Layout Visualizer</h2>
-            <p class="project-description">
-                A professional CAD-style tool for planning deck construction. Design your deck layout with precision, 
-                drag-and-drop boards, and visualize your project before building.
-            </p>
-            
             <div class="features">
                 <div class="feature"><strong>Interactive Design:</strong> Drag & drop boards with smart snapping</div>
                 <div class="feature"><strong>Precise Grid:</strong> 1/8" precision alignment system</div>
                 <div class="feature"><strong>Real Dimensions:</strong> Edit deck and board sizes with live preview</div>
                 <div class="feature"><strong>Professional UI:</strong> Glass-morphism design with modern controls</div>
-                <div class="feature"><strong>Export Ready:</strong> Plan your material lists and cuts</div>
-                <div class="feature"><strong>Keyboard Shortcuts:</strong> Copy, paste, undo, and more</div>
             </div>
             
             <a href="deck_visualizer.html" class="launch-btn">🚀 Launch Deck Visualizer</a>
         </div>
         
-        <p style="margin-top: 40px; opacity: 0.6; font-size: 0.9rem;">
-            Built with HTML5 Canvas, modern CSS, and vanilla JavaScript
+        <p style="margin-top: 30px; opacity: 0.6; font-size: 0.9rem;">
+            Works on desktop, tablet, and mobile devices
         </p>
     </div>
 </body>
