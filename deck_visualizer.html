@@ -754,18 +754,16 @@
                 this.ctx.lineWidth = 3;
                 this.ctx.fillStyle = '#f8f8f8';
                 
-                // Use consistent logical coordinates for deck position
-                const baseX = 150;
-                const baseY = 100;
+                // Use fixed logical coordinates for deck position (in feet)
+                const deckLogicalX = 5; // 5 feet from origin
+                const deckLogicalY = 3.33; // 3.33 feet from origin
                 
-                // Calculate deck position in logical coordinates and snap to grid
-                const deckLogicalX = baseX / this.scale;
-                const deckLogicalY = baseY / this.scale;
+                // Snap to grid in logical coordinates
                 const snapSpacing = this.snapGridSize; // 1/8" in feet
                 const snappedDeckLogicalX = Math.round(deckLogicalX / snapSpacing) * snapSpacing;
                 const snappedDeckLogicalY = Math.round(deckLogicalY / snapSpacing) * snapSpacing;
                 
-                // Convert back to screen coordinates for drawing
+                // Convert to screen coordinates for drawing
                 const x = snappedDeckLogicalX * this.scale;
                 const y = snappedDeckLogicalY * this.scale;
                 
@@ -801,18 +799,16 @@
                 this.ctx.strokeStyle = '#8B4513';
                 this.ctx.lineWidth = 2;
                 
-                // Use same consistent logical coordinates as deck outline
-                const baseX = 150;
-                const baseY = 100;
+                // Use same fixed logical coordinates as deck outline
+                const deckLogicalX = 5; // 5 feet from origin
+                const deckLogicalY = 3.33; // 3.33 feet from origin
                 
-                // Calculate deck position in logical coordinates and snap to grid
-                const deckLogicalX = baseX / this.scale;
-                const deckLogicalY = baseY / this.scale;
+                // Snap to grid in logical coordinates
                 const snapSpacing = this.snapGridSize; // 1/8" in feet
                 const snappedDeckLogicalX = Math.round(deckLogicalX / snapSpacing) * snapSpacing;
                 const snappedDeckLogicalY = Math.round(deckLogicalY / snapSpacing) * snapSpacing;
                 
-                // Convert back to screen coordinates for drawing
+                // Convert to screen coordinates for drawing
                 const x = snappedDeckLogicalX * this.scale;
                 const y = snappedDeckLogicalY * this.scale;
                 
@@ -989,19 +985,15 @@
                 
                 // Calculate grid origin accounting for view offset (panning) and zoom
                 // Use the deck position as the reference point for grid alignment
-                const baseX = 150;
-                const baseY = 100;
-                
-                // Calculate deck position in logical coordinates (feet)
-                const deckLogicalX = baseX / this.scale;
-                const deckLogicalY = baseY / this.scale;
+                const deckLogicalX = 5; // 5 feet from origin
+                const deckLogicalY = 3.33; // 3.33 feet from origin
                 
                 // Snap deck position to logical grid
                 const snapSpacing = this.snapGridSize; // 1/8" in feet
                 const snappedDeckLogicalX = Math.round(deckLogicalX / snapSpacing) * snapSpacing;
                 const snappedDeckLogicalY = Math.round(deckLogicalY / snapSpacing) * snapSpacing;
                 
-                // Convert back to screen coordinates
+                // Convert to screen coordinates
                 const snappedDeckScreenX = snappedDeckLogicalX * this.scale;
                 const snappedDeckScreenY = snappedDeckLogicalY * this.scale;
                 
@@ -1065,18 +1057,16 @@
             }
             
             drawEdgeHandles(topEdge, rightEdge, bottomEdge, leftEdge, extWidth, extLength) {
-                // Use same consistent logical coordinates as deck outline
-                const baseX = 150;
-                const baseY = 100;
+                // Use same fixed logical coordinates as deck outline
+                const deckLogicalX = 5; // 5 feet from origin
+                const deckLogicalY = 3.33; // 3.33 feet from origin
                 
-                // Calculate deck position in logical coordinates and snap to grid
-                const deckLogicalX = baseX / this.scale;
-                const deckLogicalY = baseY / this.scale;
+                // Snap to grid in logical coordinates
                 const snapSpacing = this.snapGridSize; // 1/8" in feet
                 const snappedDeckLogicalX = Math.round(deckLogicalX / snapSpacing) * snapSpacing;
                 const snappedDeckLogicalY = Math.round(deckLogicalY / snapSpacing) * snapSpacing;
                 
-                // Convert back to screen coordinates for drawing
+                // Convert to screen coordinates for drawing
                 const x = snappedDeckLogicalX * this.scale;
                 const y = snappedDeckLogicalY * this.scale;
                 
@@ -2096,12 +2086,18 @@
                 const snapDistance = 15; // pixels
                 let snapped = false;
                 
-                // Get deck boundaries using snapped position
-                const baseX = 150;
-                const baseY = 100;
-                const snappedDeckPos = this.snapToGrid(baseX, baseY);
-                const deckX = snappedDeckPos.x;
-                const deckY = snappedDeckPos.y;
+                // Get deck boundaries using fixed logical coordinates
+                const deckLogicalX = 5; // 5 feet from origin
+                const deckLogicalY = 3.33; // 3.33 feet from origin
+                
+                // Snap to grid in logical coordinates
+                const snapSpacing = this.snapGridSize; // 1/8" in feet
+                const snappedDeckLogicalX = Math.round(deckLogicalX / snapSpacing) * snapSpacing;
+                const snappedDeckLogicalY = Math.round(deckLogicalY / snapSpacing) * snapSpacing;
+                
+                // Convert to screen coordinates
+                const deckX = snappedDeckLogicalX * this.scale;
+                const deckY = snappedDeckLogicalY * this.scale;
                 
                 // Get all deck dimensions for irregular quadrilateral
                 const topEdge = parseFloat(document.getElementById('topEdge').value) * this.scale;
@@ -2372,23 +2368,24 @@
             const boardGap = parseFloat(document.getElementById('boardGap').value) / 12;
             const boardDirection = document.getElementById('boardDirection').value;
             
-            // Use snapped deck position
-            const baseX = 150;
-            const baseY = 100;
-            const snappedDeckPos = deckViz.snapToGrid(baseX, baseY);
-            const startX = snappedDeckPos.x + 1 * deckViz.scale;
-            const startY = snappedDeckPos.y + 1 * deckViz.scale;
+            // Use fixed logical coordinates for deck position
+            const deckLogicalX = 5; // 5 feet from origin
+            const deckLogicalY = 3.33; // 3.33 feet from origin
+            
+            // Start placing boards 1 foot inside the deck edges (in logical coordinates)
+            const startLogicalX = deckLogicalX + 1;
+            const startLogicalY = deckLogicalY + 1;
             
             if (pattern === 'straight') {
                 if (boardDirection === 'horizontal') {
                     // Horizontal boards (running front to back)
-                    const spacing = (boardWidth + boardGap) * deckViz.scale;
-                    const numBoards = Math.floor((rightEdge - 2) / (boardWidth + boardGap));
+                    const spacing = boardWidth + boardGap;
+                    const numBoards = Math.floor((rightEdge - 2) / spacing);
                     
                     for (let i = 0; i < numBoards; i++) {
                         const board = deckViz.createBoard(
-                            startX + (topEdge * deckViz.scale) / 2,
-                            startY + i * spacing + spacing/2,
+                            (startLogicalX + topEdge / 2 - 1) * deckViz.scale,
+                            (startLogicalY + i * spacing + spacing/2) * deckViz.scale,
                             boardWidth,
                             topEdge - 2
                         );
@@ -2397,13 +2394,13 @@
                     }
                 } else {
                     // Vertical boards (running left to right)
-                    const spacing = (boardWidth + boardGap) * deckViz.scale;
-                    const numBoards = Math.floor((topEdge - 2) / (boardWidth + boardGap));
+                    const spacing = boardWidth + boardGap;
+                    const numBoards = Math.floor((topEdge - 2) / spacing);
                     
                     for (let i = 0; i < numBoards; i++) {
                         const board = deckViz.createBoard(
-                            startX + i * spacing + spacing/2,
-                            startY + (rightEdge * deckViz.scale) / 2,
+                            (startLogicalX + i * spacing + spacing/2) * deckViz.scale,
+                            (startLogicalY + rightEdge / 2 - 1) * deckViz.scale,
                             boardWidth,
                             rightEdge - 2
                         );
@@ -2426,11 +2423,19 @@
             let attempts = 0;
             let board;
             
+            // Use fixed logical coordinates for deck position
+            const deckLogicalX = 5; // 5 feet from origin
+            const deckLogicalY = 3.33; // 3.33 feet from origin
+            
             // Try to find a non-overlapping position
             do {
+                // Create board at random position within deck area (in logical coordinates)
+                const randomLogicalX = deckLogicalX + Math.random() * 20;
+                const randomLogicalY = deckLogicalY + Math.random() * 10;
+                
                 board = deckViz.createBoard(
-                    200 + Math.random() * 600,
-                    150 + Math.random() * 500
+                    randomLogicalX * deckViz.scale,
+                    randomLogicalY * deckViz.scale
                 );
                 attempts++;
             } while (deckViz.wouldOverlap(board) && attempts < 50);
@@ -2449,6 +2454,10 @@
         function addMultipleBoards(count) {
             deckViz.saveState(); // Save state before adding
             
+            // Use fixed logical coordinates for deck position
+            const deckLogicalX = 5; // 5 feet from origin
+            const deckLogicalY = 3.33; // 3.33 feet from origin
+            
             let addedCount = 0;
             for (let i = 0; i < count; i++) {
                 let attempts = 0;
@@ -2456,9 +2465,13 @@
                 
                 // Try to find a non-overlapping position
                 do {
+                    // Create board at random position within deck area (in logical coordinates)
+                    const randomLogicalX = deckLogicalX + Math.random() * 22;
+                    const randomLogicalY = deckLogicalY + Math.random() * 10;
+                    
                     board = deckViz.createBoard(
-                        200 + Math.random() * 700,
-                        150 + Math.random() * 600
+                        randomLogicalX * deckViz.scale,
+                        randomLogicalY * deckViz.scale
                     );
                     attempts++;
                 } while (deckViz.wouldOverlap(board) && attempts < 20);
@@ -2520,19 +2533,27 @@
             deckViz.selectedBoards.forEach(b => b.selected = false);
             deckViz.selectedBoards = [];
             
-            const offsetX = 60; // Offset for pasted boards
-            const offsetY = 60;
+            // Use fixed logical coordinates for deck position
+            const deckLogicalX = 5; // 5 feet from origin
+            const deckLogicalY = 3.33; // 3.33 feet from origin
+            
+            const offsetX = 2; // Offset for pasted boards in feet
+            const offsetY = 2;
             
             deckViz.clipboard.forEach(clipboardBoard => {
                 let attempts = 0;
                 let newBoard;
                 
                 do {
+                    // Create board at random position within deck area (in logical coordinates)
+                    const randomLogicalX = deckLogicalX + 5 + Math.random() * 10 + offsetX;
+                    const randomLogicalY = deckLogicalY + 2 + Math.random() * 5 + offsetY;
+                    
                     newBoard = deckViz.createBoard(
-                        300 + Math.random() * 400 + offsetX,
-                        200 + Math.random() * 300 + offsetY,
-                        clipboardBoard.width / deckViz.scale, // Fix: Just convert pixels to feet
-                        clipboardBoard.height / deckViz.scale
+                        randomLogicalX * deckViz.scale,
+                        randomLogicalY * deckViz.scale,
+                        clipboardBoard.width,
+                        clipboardBoard.height
                     );
                     newBoard.rotation = clipboardBoard.rotation;
                     attempts++;
@@ -2563,23 +2584,23 @@
             deckViz.selectedBoards.forEach(b => b.selected = false);
             deckViz.selectedBoards = [];
             
-            const offsetX = 40;
-            const offsetY = 40;
+            const offsetX = 1.33; // Offset in feet (about 16 inches)
+            const offsetY = 1.33;
             
             originalSelection.forEach(originalBoard => {
                 const newBoard = deckViz.createBoard(
-                    originalBoard.x + offsetX,
-                    originalBoard.y + offsetY,
-                    originalBoard.width / deckViz.scale, // Fix: Just convert pixels to feet
-                    originalBoard.height / deckViz.scale
+                    (originalBoard.x + offsetX) * deckViz.scale,
+                    (originalBoard.y + offsetY) * deckViz.scale,
+                    originalBoard.width,
+                    originalBoard.height
                 );
                 newBoard.rotation = originalBoard.rotation;
                 
                 // Check for overlap and adjust position if needed
                 let attempts = 0;
                 while (deckViz.wouldOverlap(newBoard) && attempts < 10) {
-                    newBoard.x += 20;
-                    newBoard.y += 20;
+                    newBoard.x += 0.67; // Move by 8 inches in logical coordinates
+                    newBoard.y += 0.67;
                     attempts++;
                 }
                 
