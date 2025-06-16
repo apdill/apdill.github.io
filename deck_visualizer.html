@@ -489,6 +489,7 @@
                         • <strong>Desktop:</strong> Hold Ctrl/Cmd + click to add/remove from selection<br><br>
                         
                         <strong>🔍 Navigation:</strong><br>
+                        • <strong>Desktop:</strong> Scroll wheel or trackpad pinch to zoom in/out<br>
                         • <strong>Desktop:</strong> Shift + drag or middle mouse to pan around<br>
                         • <strong>Desktop:</strong> Box select by dragging in empty space<br>
                         • <strong>Mobile:</strong> Single finger drag to pan around<br>
@@ -498,6 +499,8 @@
                         • <strong>Ctrl+C</strong> to copy, <strong>Ctrl+V</strong> to paste boards<br>
                         • <strong>Ctrl+D</strong> to duplicate selected boards<br>
                         • <strong>Ctrl+Z</strong> to undo last action<br>
+                        • <strong>Ctrl++</strong> to zoom in, <strong>Ctrl+-</strong> to zoom out<br>
+                        • <strong>Ctrl+0</strong> to reset zoom and pan<br>
                         • <strong>Delete/Backspace</strong> to remove selected boards<br><br>
                         
                         <strong>🔧 Advanced Features:</strong><br>
@@ -641,7 +644,10 @@
                 
                 // Change cursor for edge handles and panning
                 this.canvas.addEventListener('mousemove', (e) => {
-                    if (this.isPanning) return; // Don't change cursor while panning
+                    if (this.isPanning) {
+                        this.canvas.style.cursor = 'grabbing';
+                        return;
+                    }
                     
                     const rect = this.canvas.getBoundingClientRect();
                     const screenX = e.clientX - rect.left;
@@ -649,10 +655,23 @@
                     const worldPos = this.screenToWorld(screenX, screenY);
                     const edge = this.getEdgeAtPoint(worldPos.x, worldPos.y);
                     
+                    // Check if hovering over a board
+                    let hoveringBoard = false;
+                    for (let board of this.boards) {
+                        if (this.isPointInBoard(worldPos.x, worldPos.y, board)) {
+                            hoveringBoard = true;
+                            break;
+                        }
+                    }
+                    
                     if (e.shiftKey) {
                         this.canvas.style.cursor = 'grab';
+                    } else if (edge) {
+                        this.canvas.style.cursor = 'pointer';
+                    } else if (hoveringBoard) {
+                        this.canvas.style.cursor = 'move';
                     } else {
-                        this.canvas.style.cursor = edge ? 'pointer' : 'grab';
+                        this.canvas.style.cursor = 'grab';
                     }
                 });
                 
@@ -1643,9 +1662,44 @@
             handleWheel(e) {
                 e.preventDefault();
                 
-                // Simple zoom by adjusting scale (optional enhancement)
-                // For now, just prevent default scrolling behavior
-                // Could add zoom functionality here later
+                // Get mouse position relative to canvas
+                const rect = this.canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                // Handle zoom (both scroll wheel and trackpad pinch)
+                // Trackpad pinch gestures often come through as wheel events with ctrlKey
+                let zoomFactor;
+                
+                if (e.ctrlKey) {
+                    // Trackpad pinch gesture - more sensitive
+                    zoomFactor = e.deltaY > 0 ? 0.95 : 1.05;
+                } else {
+                    // Regular scroll wheel - less sensitive
+                    zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+                }
+                
+                const newScale = Math.max(this.minScale, Math.min(this.maxScale, this.currentScale * zoomFactor));
+                
+                if (newScale !== this.currentScale) {
+                    // Calculate zoom center in world coordinates (before zoom)
+                    const worldPos = this.screenToWorld(mouseX, mouseY);
+                    
+                    // Apply zoom
+                    const scaleChange = newScale / this.currentScale;
+                    this.scale *= scaleChange;
+                    this.currentScale = newScale;
+                    
+                    // Adjust view offset to keep the zoom centered on mouse position
+                    // Convert world position back to screen coordinates with new scale
+                    const newWorldPos = this.screenToWorld(mouseX, mouseY);
+                    
+                    // Adjust view offset to compensate for the change
+                    this.viewOffset.x += (worldPos.x - newWorldPos.x);
+                    this.viewOffset.y += (worldPos.y - newWorldPos.y);
+                    
+                    this.drawDeck();
+                }
             }
             
             handleTouchStart(e) {
@@ -2347,6 +2401,15 @@
                 } else if (e.key === 'z' || e.key === 'Z') {
                     e.preventDefault();
                     deckViz.undo();
+                } else if (e.key === '=' || e.key === '+') {
+                    e.preventDefault();
+                    zoomIn();
+                } else if (e.key === '-' || e.key === '_') {
+                    e.preventDefault();
+                    zoomOut();
+                } else if (e.key === '0') {
+                    e.preventDefault();
+                    resetZoom();
                 }
             }
             
@@ -2613,6 +2676,65 @@
             
             deckViz.drawDeck();
             console.log(`Duplicated ${deckViz.selectedBoards.length} board(s)`);
+        }
+        
+        // Zoom helper functions
+        function zoomIn() {
+            const centerX = deckViz.canvas.width / 2;
+            const centerY = deckViz.canvas.height / 2;
+            
+            const zoomFactor = 1.1;
+            const newScale = Math.max(deckViz.minScale, Math.min(deckViz.maxScale, deckViz.currentScale * zoomFactor));
+            
+            if (newScale !== deckViz.currentScale) {
+                // Calculate zoom center in world coordinates (before zoom)
+                const worldPos = deckViz.screenToWorld(centerX, centerY);
+                
+                // Apply zoom
+                const scaleChange = newScale / deckViz.currentScale;
+                deckViz.scale *= scaleChange;
+                deckViz.currentScale = newScale;
+                
+                // Adjust view offset to keep the zoom centered
+                const newWorldPos = deckViz.screenToWorld(centerX, centerY);
+                deckViz.viewOffset.x += (worldPos.x - newWorldPos.x);
+                deckViz.viewOffset.y += (worldPos.y - newWorldPos.y);
+                
+                deckViz.drawDeck();
+            }
+        }
+        
+        function zoomOut() {
+            const centerX = deckViz.canvas.width / 2;
+            const centerY = deckViz.canvas.height / 2;
+            
+            const zoomFactor = 0.9;
+            const newScale = Math.max(deckViz.minScale, Math.min(deckViz.maxScale, deckViz.currentScale * zoomFactor));
+            
+            if (newScale !== deckViz.currentScale) {
+                // Calculate zoom center in world coordinates (before zoom)
+                const worldPos = deckViz.screenToWorld(centerX, centerY);
+                
+                // Apply zoom
+                const scaleChange = newScale / deckViz.currentScale;
+                deckViz.scale *= scaleChange;
+                deckViz.currentScale = newScale;
+                
+                // Adjust view offset to keep the zoom centered
+                const newWorldPos = deckViz.screenToWorld(centerX, centerY);
+                deckViz.viewOffset.x += (worldPos.x - newWorldPos.x);
+                deckViz.viewOffset.y += (worldPos.y - newWorldPos.y);
+                
+                deckViz.drawDeck();
+            }
+        }
+        
+        function resetZoom() {
+            deckViz.currentScale = 1;
+            deckViz.scale = 30; // Reset to original scale
+            deckViz.viewOffset.x = 0;
+            deckViz.viewOffset.y = 0;
+            deckViz.drawDeck();
         }
         
         // Start with no boards (user requested default of 0)
